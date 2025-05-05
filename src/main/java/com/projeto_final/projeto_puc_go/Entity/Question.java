@@ -8,7 +8,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 @Entity
-@Table(name = "questions")
+@Table(name = "question")
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
@@ -35,6 +35,4 @@ public class Question {
     @Builder.Default
     @OneToMany(mappedBy = "question", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private Set<Answer> answers = new HashSet<>();
-    
-    
 }

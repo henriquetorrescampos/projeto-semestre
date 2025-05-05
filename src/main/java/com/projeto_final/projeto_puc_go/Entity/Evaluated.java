@@ -6,7 +6,7 @@ import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "evaluations")
+@Table(name = "evaluated")
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
@@ -20,15 +20,15 @@ public class Evaluated {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     
-    @Column(nullable = false)
-    private Integer score;
-    
     @Column(columnDefinition = "TEXT")
     private String feedback;
     
     @Column(name = "created_at", nullable = false)
     @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();
+    
+    @Column(nullable = false)
+    private String name;
     
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;

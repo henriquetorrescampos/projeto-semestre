@@ -9,7 +9,7 @@ import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "answers")
+@Table(name = "answer")
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
@@ -22,6 +22,9 @@ public class Answer {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+    
+    @Column(nullable = false)
+    private Integer score;
     
     @Column(nullable = false, columnDefinition = "TEXT")
     private String content;
