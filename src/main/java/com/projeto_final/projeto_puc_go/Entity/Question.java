@@ -29,9 +29,6 @@ public class Question {
     @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();
     
-    @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
-    
     @Builder.Default
     @OneToMany(mappedBy = "question", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private Set<Answer> answers = new HashSet<>();
