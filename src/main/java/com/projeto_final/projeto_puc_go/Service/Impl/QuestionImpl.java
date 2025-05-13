@@ -21,28 +21,28 @@ public class QuestionImpl implements QuestionService {
         this.questionRepository = questionRepository;
     }
     
-    @Override
     @Transactional
+    @Override
     public Question createQuestion(Question question) {
         // A data de criação (createdAt) já é definida por padrão na entidade
         // Se necessário, validações adicionais podem ser inseridas aqui
         return questionRepository.save(question);
     }
     
-    @Override
     @Transactional(readOnly = true)
+    @Override
     public List<Question> getAllQuestions() {
         return questionRepository.findAll();
     }
     
-    @Override
     @Transactional(readOnly = true)
+    @Override
     public Optional<Question> getQuestionById(Long id) {
         return questionRepository.findById(id);
     }
     
-    @Override
     @Transactional
+    @Override
     public Optional<Question> updateQuestion(
             Long id,
             Question questionDetails
@@ -66,8 +66,8 @@ public class QuestionImpl implements QuestionService {
                 });
     }
     
-    @Override
     @Transactional
+    @Override
     public boolean deleteQuestion(Long id) {
         if (questionRepository.existsById(id)) {
             questionRepository.deleteById(id);
