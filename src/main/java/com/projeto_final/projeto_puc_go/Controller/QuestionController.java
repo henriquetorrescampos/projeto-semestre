@@ -20,7 +20,7 @@ public class QuestionController {
         this.questionService = questionService;
     }
     
-    @GetMapping("/create-question") // Mapeia requisições GET para /questions
+    @PostMapping("/create-question") // Mapeia requisições GET para /questions
     public ResponseEntity<Question> createQuestion(@RequestBody Question question) {
         try {
             Question createdQuestion = questionService.createQuestion((question));
