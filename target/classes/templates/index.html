@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="pt-br" class="h-full bg-gray-50">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SAA - Sistema de Avaliação de Atendimentos</title>
+    <meta name="description" content="Sistema de Avaliação de Atendimentos">
+    <meta name="keywords" content="SAA, Sistema, Avaliação, Atendimentos">
+    <meta name="robots" content="index, follow">
+    <meta name="theme-color" content="#2563eb">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        html { font-family: 'Roboto', sans-serif; }
+    </style>
+</head>
+<body class="h-full flex flex-col min-h-screen">
+    <header class="bg-white shadow-sm">
+        <div class="max-w-4xl mx-auto px-4 py-6 flex items-center justify-between">
+            <h1 class="text-2xl md:text-3xl font-bold text-blue-700 tracking-tight">SAA</h1>
+            <nav>
+                <ul class="flex gap-6 text-base font-medium text-gray-700">
+                    <li><a href="/avaliacao" class="hover:text-blue-600 transition">Avaliação</a></li>
+                    <li><a href="/relatorio" class="hover:text-blue-600 transition">Relatório</a></li>
+                    <li><a href="/configuracao" class="hover:text-blue-600 transition">Configuração</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <main class="flex-1 flex flex-col items-center justify-center px-4">
+        <section class="w-full max-w-xl bg-white rounded-2xl shadow-lg p-10 mt-12 mb-8 text-center">
+            <h2 class="text-3xl font-bold text-gray-900 mb-3">Bem-vindo ao SAA!</h2>
+            <p class="text-gray-600 text-lg mb-6">Sistema moderno para avaliação de atendimentos.</p>
+            <div class="flex flex-col md:flex-row gap-4 justify-center">
+                <a href="/avaliacao" class="flex-1 py-3 px-6 rounded-lg bg-blue-600 text-white font-semibold text-lg shadow hover:bg-blue-700 transition">Avaliação</a>
+                <a href="/relatorio" class="flex-1 py-3 px-6 rounded-lg bg-green-600 text-white font-semibold text-lg shadow hover:bg-green-700 transition">Relatório</a>
+                
+            </div>
+        </section>
+        <section class="max-w-xl w-full text-center">
+            <img src="https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&w=800&q=80" alt="Atendimento" class="rounded-xl shadow-md w-full object-cover h-48 mx-auto mb-6">
+            <p class="text-gray-500">Avalie, acompanhe e otimize seus atendimentos de forma simples e eficiente.</p>
+        </section>
+    </main>
+
+    <footer class="bg-white border-t mt-12">
+        <div class="max-w-4xl mx-auto px-4 py-6 text-center text-gray-400 text-sm">
+            &copy; 2025 SAA. Todos os direitos reservados.
+        </div>
+    </footer>
+</body>
+</html>

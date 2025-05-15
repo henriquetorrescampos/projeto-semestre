@@ -1,0 +1,14 @@
+/* GLOBAIS */
+:root {
+    --primary-color: #4CAF50; /* Green */
+    --secondary-color: #f2f2f2; /* Light Gray */
+    --text-color: #333; /* Dark Gray */
+    --font-size: 16px;
+}
+*{
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-size: 16px;
+    font-family: "Roboto", sans-serif;
+}
