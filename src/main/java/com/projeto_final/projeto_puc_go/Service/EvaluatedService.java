@@ -11,7 +11,7 @@ public interface EvaluatedService {
     Evaluated createEvaluated(Evaluated evaluated);
 
     @Transactional(readOnly = true)
-    List<Evaluated> getAllEvaluateds();
+    List<Evaluated> getAllEvaluated();
 
     @Transactional(readOnly = true)
     Optional<Evaluated> getEvaluatedById(Long id);
