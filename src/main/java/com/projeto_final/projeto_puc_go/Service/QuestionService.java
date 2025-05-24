@@ -5,6 +5,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
+import java.time.LocalDateTime; // Importe este, se não tiver
 
 public interface QuestionService {
     @Transactional
