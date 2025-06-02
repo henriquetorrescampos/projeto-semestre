@@ -1,32 +1,30 @@
 package com.projeto_final.projeto_puc_go.Service.Impl;
 
 import com.projeto_final.projeto_puc_go.Entity.Evaluator;
-import com.projeto_final.projeto_puc_go.Repository.EvaluatorRepository; // Importe o Repository (certifique-se de criá-lo)
+import com.projeto_final.projeto_puc_go.Repository.EvaluatorRepository;
 import com.projeto_final.projeto_puc_go.Service.EvaluatorService;
-import com.projeto_final.projeto_puc_go.Exception.ResourceNotFoundException; // Importe a exceção
+import com.projeto_final.projeto_puc_go.Exception.ResourceNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime; // Importe LocalDateTime
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
 @Service
-public class EvaluatorImpl implements EvaluatorService {
+public class EvaluatorServiceImpl implements EvaluatorService {
 
     private final EvaluatorRepository evaluatorRepository;
 
     @Autowired
-    public EvaluatorImpl(EvaluatorRepository evaluatorRepository) {
+    public EvaluatorServiceImpl(EvaluatorRepository evaluatorRepository) {
         this.evaluatorRepository = evaluatorRepository;
     }
 
     @Transactional
     @Override
     public Evaluator createEvaluator(Evaluator evaluator) {
-        // Validações adicionais (ex: email único) podem ser feitas aqui.
-        // O @Email na entidade já ajuda, mas se precisar de uma validação de negócio mais profunda, faça aqui.
         return evaluatorRepository.save(evaluator);
     }
 
@@ -49,7 +47,6 @@ public class EvaluatorImpl implements EvaluatorService {
                 .map(existingEvaluator -> {
                     existingEvaluator.setName(evaluatorDetails.getName());
                     existingEvaluator.setEmail(evaluatorDetails.getEmail());
-                    // Se tiver updatedAt, atualize-o:
                     existingEvaluator.setUpdatedAt(LocalDateTime.now());
                     return evaluatorRepository.save(existingEvaluator);
                 });
@@ -62,6 +59,6 @@ public class EvaluatorImpl implements EvaluatorService {
             evaluatorRepository.deleteById(id);
             return true;
         }
-        throw new ResourceNotFoundException("Avaliador não encontrado com o ID: " + id);
+        throw new ResourceNotFoundException("Evaluator not found with ID: " + id);
     }
 }

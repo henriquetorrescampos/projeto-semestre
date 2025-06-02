@@ -1,4 +1,4 @@
-// src/main/java/com/projeto_final/projeto_puc_go/exception/ResourceNotFoundException.java
+// src/main/java/com/projeto_final/projeto_puc_go/Exception/ResourceNotFoundException.java
 package com.projeto_final.projeto_puc_go.Exception;
 
 import org.springframework.http.HttpStatus;
