@@ -3,7 +3,7 @@ package com.projeto_final.projeto_puc_go.Service.Impl;
 import com.projeto_final.projeto_puc_go.Entity.Evaluation;
 import com.projeto_final.projeto_puc_go.Entity.Characteristic;
 import com.projeto_final.projeto_puc_go.Entity.Rating;
-import com.projeto_final.projeto_puc_go.Entity.ManagerType; // Importar o enum
+import com.projeto_final.projeto_puc_go.Entity.ManagerType;
 import com.projeto_final.projeto_puc_go.Repository.EvaluationRepository;
 import com.projeto_final.projeto_puc_go.Repository.EvaluatedRepository;
 import com.projeto_final.projeto_puc_go.Repository.EvaluatorRepository;
@@ -13,7 +13,7 @@ import com.projeto_final.projeto_puc_go.Dto.ManagerTypeDistributionDto;
 import com.projeto_final.projeto_puc_go.Dto.ManagerTypeAverageScoreDto;
 import com.projeto_final.projeto_puc_go.Dto.EvaluationDetailDto;
 import com.projeto_final.projeto_puc_go.Dto.EvaluationSummaryDto;
-import com.projeto_final.projeto_puc_go.Dto.ManagerTypeSkillAverageDto; // Importar o novo DTO
+import com.projeto_final.projeto_puc_go.Dto.ManagerTypeSkillAverageDto;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -28,8 +28,8 @@ import java.util.stream.Collectors;
 public class EvaluationServiceImpl implements EvaluationService {
 
     private final EvaluationRepository evaluationRepository;
-    private final EvaluatedRepository evaluatedRepository; // Adicionado
-    private final EvaluatorRepository evaluatorRepository; // Adicionado
+    private final EvaluatedRepository evaluatedRepository;
+    private final EvaluatorRepository evaluatorRepository;
 
     @Autowired
     public EvaluationServiceImpl(EvaluationRepository evaluationRepository,
@@ -43,7 +43,6 @@ public class EvaluationServiceImpl implements EvaluationService {
     @Transactional
     @Override
     public Evaluation createEvaluation(Evaluation evaluation) {
-        // Garantir que Evaluated e Evaluator existem antes de salvar a Evaluation
         if (evaluation.getEvaluated() != null && evaluation.getEvaluated().getId() != null) {
             evaluatedRepository.findById(evaluation.getEvaluated().getId())
                     .orElseThrow(() -> new ResourceNotFoundException("Evaluated not found with ID: " + evaluation.getEvaluated().getId()));
@@ -58,15 +57,13 @@ public class EvaluationServiceImpl implements EvaluationService {
             throw new IllegalArgumentException("Evaluator ID must not be null.");
         }
 
-        // Setar a data de criação
         evaluation.setCreatedAt(LocalDateTime.now());
 
-        // Associar características e ratings à avaliação antes de salvar
         evaluation.getCharacteristics().forEach(characteristic -> {
             characteristic.setEvaluation(evaluation);
             characteristic.getRatings().forEach(rating -> {
                 rating.setCharacteristic(characteristic);
-                rating.setEvaluation(evaluation); // Associar o rating à avaliação
+                rating.setEvaluation(evaluation);
             });
         });
 
@@ -95,9 +92,8 @@ public class EvaluationServiceImpl implements EvaluationService {
                     existingEvaluation.setStartDate(evaluationDetails.getStartDate());
                     existingEvaluation.setEndDate(evaluationDetails.getEndDate());
                     existingEvaluation.setUpdatedAt(LocalDateTime.now());
-                    existingEvaluation.setManagerType(evaluationDetails.getManagerType()); // Atualiza o tipo de gestor
+                    existingEvaluation.setManagerType(evaluationDetails.getManagerType());
 
-                    // Lógica para atualizar Evaluated e Evaluator se necessário
                     if (evaluationDetails.getEvaluated() != null && evaluationDetails.getEvaluated().getId() != null) {
                         evaluatedRepository.findById(evaluationDetails.getEvaluated().getId())
                                 .orElseThrow(() -> new ResourceNotFoundException("Evaluated not found with ID: " + evaluationDetails.getEvaluated().getId()));
@@ -108,10 +104,6 @@ public class EvaluationServiceImpl implements EvaluationService {
                                 .orElseThrow(() -> new ResourceNotFoundException("Evaluator not found with ID: " + evaluationDetails.getEvaluator().getId()));
                         existingEvaluation.setEvaluator(evaluationDetails.getEvaluator());
                     }
-
-                    // Lógica para atualizar características e ratings: isso é mais complexo e pode exigir um service específico para características e ratings
-                    // Por simplicidade, assumimos que características e ratings serão atualizados separadamente ou através de uma lógica mais elaborada aqui.
-                    // Para este exemplo, não estamos atualizando características e ratings aninhados no update da avaliação principal.
 
                     return evaluationRepository.save(existingEvaluation);
                 });
@@ -181,7 +173,7 @@ public class EvaluationServiceImpl implements EvaluationService {
                     detailDto.setEndDate(evaluation.getEndDate());
                     detailDto.setEvaluatedName(evaluation.getEvaluated() != null ? evaluation.getEvaluated().getName() : "N/A");
                     detailDto.setEvaluatorName(evaluation.getEvaluator() != null ? evaluation.getEvaluator().getName() : "N/A");
-                    detailDto.setManagerType(evaluation.getManagerType()); // Usando o enum
+                    detailDto.setManagerType(evaluation.getManagerType());
 
                     detailDto.setCharacteristics(evaluation.getCharacteristics().stream()
                             .map(characteristic -> {
@@ -189,8 +181,7 @@ public class EvaluationServiceImpl implements EvaluationService {
                                 charDto.setId(characteristic.getId());
                                 charDto.setName(characteristic.getName());
                                 charDto.setDescription(characteristic.getDescription());
-                                // Adicionando skillCategory ao CharacteristicDto se você tiver um no EvaluationDetailDto.CharacteristicDto
-                                // charDto.setSkillCategory(characteristic.getSkillCategory());
+                                charDto.setSkillCategory(characteristic.getSkillCategory()); // Populando o skillCategory
                                 charDto.setRatings(characteristic.getRatings().stream()
                                         .map(rating -> new EvaluationDetailDto.RatingDto(rating.getId(), rating.getScore(), rating.getComment(), rating.getEvaluator().getName()))
                                         .collect(Collectors.toList()));

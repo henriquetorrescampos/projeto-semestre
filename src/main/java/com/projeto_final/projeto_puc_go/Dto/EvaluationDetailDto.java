@@ -1,6 +1,6 @@
 package com.projeto_final.projeto_puc_go.Dto;
 
-import com.projeto_final.projeto_puc_go.Entity.ManagerType; // Importar o enum
+import com.projeto_final.projeto_puc_go.Entity.ManagerType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -20,7 +20,7 @@ public class EvaluationDetailDto {
     private LocalDateTime endDate;
     private String evaluatedName;
     private String evaluatorName;
-    private ManagerType managerType; // Alterado para ManagerType enum
+    private ManagerType managerType;
     private List<CharacteristicDto> characteristics;
 
     @Data
@@ -31,6 +31,7 @@ public class EvaluationDetailDto {
         private Long id;
         private String name;
         private String description;
+        private String skillCategory;
         private List<RatingDto> ratings;
     }
 
