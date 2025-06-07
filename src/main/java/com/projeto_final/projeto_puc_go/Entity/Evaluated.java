@@ -14,7 +14,7 @@ import java.util.Set;
 @Builder
 @Getter
 @Setter
-@ToString(exclude = {"evaluator", "evaluations"}) // Adicionado "evaluations"
+@ToString(exclude = {"evaluator", "evaluations"})
 @EqualsAndHashCode(of = "id")
 public class Evaluated {
 
@@ -35,18 +35,12 @@ public class Evaluated {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-    // Removido o relacionamento @OneToOne com Answer
-    // @OneToOne(fetch = FetchType.LAZY)
-    // @JoinColumn(name = "answer_id", nullable = false, unique = true)
-    // private Answer answer;
-
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER) // Alterado para EAGER
     @JoinColumn(name = "evaluator_id", nullable = false)
     private Evaluator evaluator;
 
-    // Novo relacionamento OneToMany com Evaluation
     @Builder.Default
-    @OneToMany(mappedBy = "evaluated", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
+    @OneToMany(mappedBy = "evaluated", cascade = CascadeType.ALL, fetch = FetchType.EAGER, orphanRemoval = true) // Alterado para EAGER
     private Set<Evaluation> evaluations = new HashSet<>();
 
     public void addEvaluation(Evaluation evaluation) {

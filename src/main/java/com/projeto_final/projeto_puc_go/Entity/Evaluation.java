@@ -41,20 +41,20 @@ public class Evaluation {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-    @Enumerated(EnumType.STRING) // Anotação para mapear o enum para String no banco de dados
+    @Enumerated(EnumType.STRING)
     @Column(name = "manager_type")
-    private ManagerType managerType; // Alterado para o tipo enum ManagerType
+    private ManagerType managerType;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER) // Alterado para EAGER
     @JoinColumn(name = "evaluated_id", nullable = false)
     private Evaluated evaluated;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER) // Alterado para EAGER
     @JoinColumn(name = "evaluator_id", nullable = false)
     private Evaluator evaluator;
 
     @Builder.Default
-    @OneToMany(mappedBy = "evaluation", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
+    @OneToMany(mappedBy = "evaluation", cascade = CascadeType.ALL, fetch = FetchType.EAGER, orphanRemoval = true) // Alterado para EAGER
     private Set<Characteristic> characteristics = new HashSet<>();
 
     public void addCharacteristic(Characteristic characteristic) {

@@ -1,9 +1,12 @@
 package com.projeto_final.projeto_puc_go.Console;
 
 import com.projeto_final.projeto_puc_go.Entity.*;
-import com.projeto_final.projeto_puc_go.Service.*;
+import com.projeto_final.projeto_puc_go.Service.EvaluatedService;
+import com.projeto_final.projeto_puc_go.Service.EvaluatorService;
+import com.projeto_final.projeto_puc_go.Service.EvaluationService;
+import com.projeto_final.projeto_puc_go.Service.CharacteristicService;
+import com.projeto_final.projeto_puc_go.Service.RatingService;
 import com.projeto_final.projeto_puc_go.Exception.ResourceNotFoundException;
-import com.projeto_final.projeto_puc_go.Dto.*;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.context.ConfigurableApplicationContext;
@@ -215,12 +218,16 @@ public class ConsoleApplication implements CommandLineRunner {
         do {
             System.out.println(CYAN + "\n--- MENU DO FUNCIONÁRIO LOGADO (" + loggedInEvaluator.getName() + ") ---" + RESET);
             System.out.println("1. Avaliar um Gerente");
+            System.out.println("2. Ver Detalhes de Avaliação");
             System.out.println("0. Fazer Logout");
             System.out.print(YELLOW + "Escolha: " + RESET);
             opt = lerInteiro();
             switch (opt) {
                 case 1:
                     avaliarGerente();
+                    break;
+                case 2:
+                    verDetalhesAvaliacao();
                     break;
                 case 0:
                     System.out.println(GREEN + "Logout realizado. Até mais!" + RESET);
@@ -322,6 +329,8 @@ public class ConsoleApplication implements CommandLineRunner {
             newEvaluation.setManagerType(determinedManagerType);
             System.out.println(GREEN + "\n--- Tipo de Gestor Determinado: " + determinedManagerType.getDisplayValue() + " ---" + RESET);
 
+            exibirFeedbackGerente(determinedManagerType);
+
             evaluationService.createEvaluation(newEvaluation);
             System.out.println(GREEN + "Avaliação do gerente criada com sucesso!" + RESET);
 
@@ -331,6 +340,64 @@ public class ConsoleApplication implements CommandLineRunner {
             exibirErro("Erro de validação: " + e.getMessage());
         } catch (Exception e) {
             exibirErro("Erro ao criar avaliação do gerente: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    private void verDetalhesAvaliacao() {
+        System.out.println(CYAN + "\n--- VER DETALHES DE AVALIAÇÃO ---" + RESET);
+
+        System.out.println(CYAN + "\n--- AVALIAÇÕES DISPONÍVEIS ---" + RESET);
+        List<Evaluation> allEvaluations = evaluationService.getAllEvaluations();
+        if (allEvaluations.isEmpty()) {
+            System.out.println(YELLOW + "Nenhuma avaliação encontrada no sistema." + RESET);
+            return;
+        } else {
+            System.out.println(BLUE + "ID | Título                       | Avaliado            | Avaliador           | Data" + RESET);
+            System.out.println(BLUE + "---|------------------------------|---------------------|---------------------|--------------------" + RESET);
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+            for (Evaluation eval : allEvaluations) {
+                String titleFormatted = eval.getTitle().length() > 25 ? eval.getTitle().substring(0, 22) + "..." : String.format("%-25s", eval.getTitle());
+                String evaluatedName = eval.getEvaluated() != null ? eval.getEvaluated().getName() : "N/A";
+                String evaluatorName = eval.getEvaluator() != null ? eval.getEvaluator().getName() : "N/A";
+                String dateFormatted = eval.getCreatedAt() != null ? eval.getCreatedAt().format(formatter) : "N/A";
+
+                System.out.printf("%-2d | %s | %-19s | %-19s | %s\n",
+                        eval.getId(), titleFormatted,
+                        evaluatedName.length() > 19 ? evaluatedName.substring(0, 16) + "..." : String.format("%-19s", evaluatedName),
+                        evaluatorName.length() > 19 ? evaluatorName.substring(0, 16) + "..." : String.format("%-19s", evaluatorName),
+                        dateFormatted);
+            }
+            System.out.println(BLUE + "--------------------------------------------------------------------------------------" + RESET);
+        }
+
+        System.out.print("\nDigite o ID da Avaliação que deseja ver: ");
+        Long evaluationId = lerLongId();
+
+        try {
+            Optional<Evaluation> evaluationOpt = evaluationService.getEvaluationById(evaluationId);
+            if (evaluationOpt.isPresent()) {
+                Evaluation evaluation = evaluationOpt.get();
+                System.out.println(PURPLE + "\n--- DETALHES DA AVALIAÇÃO ID: " + evaluation.getId() + " ---" + RESET);
+
+                System.out.println(BLUE + "Avaliação feita por: " + (evaluation.getEvaluator() != null ? evaluation.getEvaluator().getName() : "N/A") + RESET);
+                System.out.println(BLUE + "Realizada em: " + (evaluation.getCreatedAt() != null ? evaluation.getCreatedAt().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")) : "N/A") + RESET);
+
+                System.out.println(BLUE + "\nGerente Avaliado: " + (evaluation.getEvaluated() != null ? evaluation.getEvaluated().getName() : "N/A") + RESET);
+                System.out.println(BLUE + "Tipo de Gestor Determinado: " + (evaluation.getManagerType() != null ? evaluation.getManagerType().getDisplayValue() : "N/A") + RESET);
+
+                if (evaluation.getManagerType() != null) {
+                    exibirFeedbackGerente(evaluation.getManagerType());
+                } else {
+                    System.out.println(YELLOW + "Tipo de Gestor não definido para esta avaliação." + RESET);
+                }
+
+
+            } else {
+                exibirErro("Avaliação não encontrada com ID: " + evaluationId);
+            }
+        } catch (Exception e) {
+            exibirErro("Erro ao buscar detalhes da avaliação: " + e.getMessage());
             e.printStackTrace();
         }
     }
@@ -367,6 +434,37 @@ public class ConsoleApplication implements CommandLineRunner {
         return ManagerType.OTHER;
     }
 
+    private void exibirFeedbackGerente(ManagerType managerType) {
+        System.out.println(PURPLE + "\n--- FEEDBACK ESTRATÉGICO PARA O GERENTE ---" + RESET);
+        switch (managerType) {
+            case ADMINISTRATIVE:
+                System.out.println(BLUE + "Este gerente demonstra fortes Habilidades Administrativas." + RESET);
+                System.out.println(BLUE + "Pontos Fortes: Liderança, organização de processos, gestão de recursos, e capacidade de criar um ambiente produtivo." + RESET);
+                System.out.println(BLUE + "Ideal para: Funções que exigem planejamento estratégico, otimização de fluxos de trabalho, coordenação de grandes equipes e manutenção da ordem e eficiência." + RESET);
+                System.out.println(BLUE + "Pode ser bom em: Gestão de projetos complexos, otimização operacional, e liderança de departamentos com foco em resultados e estrutura." + RESET);
+                break;
+            case TECHNICAL:
+                System.out.println(BLUE + "Este gerente demonstra fortes Habilidades Técnicas." + RESET);
+                System.out.println(BLUE + "Pontos Fortes: Conhecimento aprofundado na área de atuação, resolução de problemas técnicos, inovação e capacidade de ser um mentor técnico." + RESET);
+                System.out.println(BLUE + "Ideal para: Ambientes que exigem expertise técnica de ponta, liderança de equipes de engenharia, P&D, ou projetos que dependem de soluções técnicas inovadoras." + RESET);
+                System.out.println(BLUE + "Pode ser bom em: Desenvolvimento de produtos, arquitetura de sistemas, e liderança de equipes especializadas em tecnologia." + RESET);
+                break;
+            case PERSONAL:
+                System.out.println(BLUE + "Este gerente demonstra fortes Habilidades Pessoais." + RESET);
+                System.out.println(BLUE + "Pontos Fortes: Comunicação eficaz, sensibilidade interpessoal, motivação de equipe, promoção de reconhecimento e capacidade de construir relações colaborativas." + RESET);
+                System.out.println(BLUE + "Ideal para: Funções que envolvem gestão de talentos, desenvolvimento de equipe, mediação de conflitos, e construção de uma cultura organizacional positiva e engajante." + RESET);
+                System.out.println(BLUE + "Pode ser bom em: Liderança de equipes multidisciplinares, recursos humanos, e funções que exigem forte inteligência emocional e habilidades de negociação." + RESET);
+                break;
+            case OTHER:
+            default:
+                System.out.println(YELLOW + "O tipo de gestor não pôde ser claramente determinado ou se encaixa em uma categoria mista/outra." + RESET);
+                System.out.println(YELLOW + "Este gerente possui uma combinação equilibrada de habilidades ou as pontuações não indicam uma predominância clara." + RESET);
+                System.out.println(YELLOW + "Pode ser adaptável a diversas funções, mas um aprofundamento é necessário para identificar seus maiores pontos fortes." + RESET);
+                break;
+        }
+        System.out.println(PURPLE + "------------------------------------------" + RESET);
+    }
+
 
     private void exibirMenuRelatorios() {
         int opt;
@@ -378,30 +476,52 @@ public class ConsoleApplication implements CommandLineRunner {
             switch (opt) {
                 case 1:
                     System.out.println(CYAN + "\n--- DISTRIBUIÇÃO DE AVALIAÇÕES POR TIPO DE GESTOR ---" + RESET);
-                    evaluationService.getManagerTypeDistribution().forEach(dto ->
-                            System.out.printf("Tipo Gestor: %s, Contagem: %d\n", dto.getManagerType().getDisplayValue(), dto.getCount()));
+                    List<Object[]> distribution = evaluationService.getManagerTypeDistribution();
+                    if (distribution.isEmpty()) {
+                        System.out.println(YELLOW + "Nenhum dado de distribuição encontrado." + RESET);
+                    } else {
+                        distribution.forEach(row ->
+                                System.out.printf("Tipo Gestor: %s, Contagem: %d\n", ((ManagerType) row[0]).getDisplayValue(), (Long) row[1]));
+                    }
                     break;
                 case 2:
                     System.out.println(CYAN + "\n--- MÉDIA DE PONTUAÇÃO POR TIPO DE GESTOR ---" + RESET);
-                    evaluationService.getAverageScoreByManagerType().forEach(dto ->
-                            System.out.printf("Tipo Gestor: %s, Média: %.2f\n", dto.getManagerType().getDisplayValue(), dto.getAverageScore()));
+                    List<Object[]> averageScores = evaluationService.getAverageScoreByManagerType();
+                    if (averageScores.isEmpty()) {
+                        System.out.println(YELLOW + "Nenhum dado de média por tipo de gestor encontrado." + RESET);
+                    } else {
+                        averageScores.forEach(row ->
+                                System.out.printf("Tipo Gestor: %s, Média: %.2f\n", ((ManagerType) row[0]).getDisplayValue(), (Double) row[1]));
+                    }
                     break;
                 case 3:
                     System.out.println(CYAN + "\n--- RESUMOS DE AVALIAÇÕES ---" + RESET);
-                    evaluationService.getEvaluationSummaries().forEach(summary ->
+                    List<Map<String, Object>> summaries = evaluationService.getEvaluationSummaries();
+                    if (summaries.isEmpty()) {
+                        System.out.println(YELLOW + "Nenhum resumo de avaliação encontrado." + RESET);
+                    } else {
+                        summaries.forEach(summary -> {
                             System.out.printf("ID: %d, Título: %s, Avaliado: %s, Avaliador: %s, Média: %.2f\n",
-                                    summary.getId(), summary.getTitle(), summary.getEvaluatedName(),
-                                    summary.getEvaluatorName(), summary.getAverageScore()));
+                                    (Long) summary.get("id"), (String) summary.get("title"),
+                                    (String) summary.get("evaluatedName"), (String) summary.get("evaluatorName"),
+                                    (Double) summary.get("averageScore"));
+                        });
+                    }
                     break;
                 case 4:
                     System.out.println(CYAN + "\n--- MÉDIA DE PONTUAÇÃO POR TIPO DE GESTOR E CATEGORIA DE HABILIDADE ---" + RESET);
-                    evaluationService.getAverageScoreByManagerTypeAndSkillCategory().stream()
-                            .collect(Collectors.groupingBy(ManagerTypeSkillAverageDto::getManagerType))
-                            .forEach((mt, skills) -> {
-                                System.out.println("Tipo Gestor: " + mt.getDisplayValue());
-                                skills.forEach(s ->
-                                        System.out.printf("  - Categoria: %s, Média: %.2f\n", s.getSkillCategory(), s.getAverageScore()));
-                            });
+                    List<Object[]> avgSkillCat = evaluationService.getAverageScoreByManagerTypeAndSkillCategory();
+                    if (avgSkillCat.isEmpty()) {
+                        System.out.println(YELLOW + "Nenhum dado de média por tipo de gestor e categoria de habilidade encontrado." + RESET);
+                    } else {
+                        avgSkillCat.stream()
+                                .collect(Collectors.groupingBy(row -> (ManagerType) row[0]))
+                                .forEach((managerType, rows) -> {
+                                    System.out.println("Tipo Gestor: " + managerType.getDisplayValue());
+                                    rows.forEach(row ->
+                                            System.out.printf("  - Categoria: %s, Média: %.2f\n", (String) row[1], (Double) row[2]));
+                                });
+                    }
                     break;
                 case 0:
                     System.out.println(GREEN + "Voltando..." + RESET);
