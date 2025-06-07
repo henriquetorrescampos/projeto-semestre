@@ -15,11 +15,10 @@ public class ProjetoPucGoApplication {
 		// Obtém a instância do bean ConsoleApplication do contexto Spring
 		ConsoleApplication consoleApp = context.getBean(ConsoleApplication.class);
 
-		// Chama o método para iniciar sua lógica de console
-		consoleApp.runConsoleApplication();
+		// Chama o método 'run' da ConsoleApplication diretamente, pois ele já implementa CommandLineRunner
+		consoleApp.run(args); // Passa os argumentos da linha de comando para o run da ConsoleApplication
 
 		// Fecha o contexto da aplicação quando a lógica do console terminar
 		context.close();
 	}
-
 }
