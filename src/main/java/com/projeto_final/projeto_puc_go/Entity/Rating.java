@@ -23,7 +23,7 @@ public class Rating {
     @Column(nullable = false)
     private Integer score;
 
-    @Column(nullable = false, columnDefinition = "TEXT")
+    @Column(columnDefinition = "TEXT") // Ou @Column(nullable = true, columnDefinition = "TEXT") explicitamente
     private String comment;
 
     @Column(name = "created_at", nullable = false)

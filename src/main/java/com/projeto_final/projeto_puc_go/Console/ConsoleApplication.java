@@ -35,7 +35,6 @@ public class ConsoleApplication implements CommandLineRunner {
     public static final String BLUE = "\u001B[34m";
     public static final String PURPLE = "\u001B[35m";
 
-    // Classe auxiliar interna para representar um indicador de habilidade pré-definido
     private static class SkillIndicator {
         String name;
         String description;
@@ -53,11 +52,9 @@ public class ConsoleApplication implements CommandLineRunner {
         }
     }
 
-    // Lista de indicadores de habilidades baseada no PDF
     private static final List<SkillIndicator> predefinedSkillIndicators = new ArrayList<>();
 
     static {
-        // Habilidades Administrativas
         predefinedSkillIndicators.add(new SkillIndicator(
                 "Visão de Oportunidades/Inovações",
                 "Elabora uma boa visão de oportunidades/inovações para o grupo e para a companhia",
@@ -89,7 +86,6 @@ public class ConsoleApplication implements CommandLineRunner {
                 "ADMINISTRATIVE"
         ));
 
-        // Habilidades Técnicas
         predefinedSkillIndicators.add(new SkillIndicator(
                 "Boas Ideias para Tarefas Técnicas",
                 "Apresenta boas idéias de como realizar tarefas na sua área de atuação específica",
@@ -111,7 +107,6 @@ public class ConsoleApplication implements CommandLineRunner {
                 "TECHNICAL"
         ));
 
-        // Habilidades Pessoais
         predefinedSkillIndicators.add(new SkillIndicator(
                 "Incentivo e Encorajamento",
                 "Promove incentivo e encorajamento para as tarefas realizadas pela equipe",
@@ -167,14 +162,14 @@ public class ConsoleApplication implements CommandLineRunner {
         int opt;
         do {
             System.out.println(CYAN + "\n--- MENU PRINCIPAL ---" + RESET);
-            System.out.println("1. Entrar como Funcionário (Login)");
+            System.out.println("1. Entrar como Funcionário");
             System.out.println("2. Ver Cálculos Estatísticos");
             System.out.println("0. Sair");
             System.out.print(YELLOW + "Escolha: " + RESET);
             opt = lerInteiro();
             switch (opt) {
                 case 1:
-                    realizarLoginFuncionario();
+                    realizarRegistroFuncionario();
                     break;
                 case 2:
                     exibirMenuRelatorios();
@@ -191,24 +186,28 @@ public class ConsoleApplication implements CommandLineRunner {
         } while (opt != 0);
     }
 
-    private void realizarLoginFuncionario() {
-        System.out.println(CYAN + "\n--- LOGIN DO FUNCIONÁRIO ---" + RESET);
-        listarAvaliadores();
-        System.out.print("Digite seu ID de Avaliador para fazer login: ");
-        Long evaluatorId = lerLongId();
+    private void realizarRegistroFuncionario() {
+        System.out.println(CYAN + "\n--- IDENTIFICAÇÃO DO FUNCIONÁRIO ---" + RESET);
+        System.out.print("Digite seu NOME: ");
+        String evaluatorName = scanner.nextLine();
 
-        try {
-            Optional<Evaluator> evaluatorOpt = evaluatorService.getEvaluatorById(evaluatorId);
-            if (evaluatorOpt.isPresent()) {
-                this.loggedInEvaluator = evaluatorOpt.get();
-                System.out.println(GREEN + "Login realizado com sucesso! Bem-vindo(a), " + loggedInEvaluator.getName() + RESET);
-                menuFuncionarioLogado();
-            } else {
-                exibirErro("ID de Avaliador não encontrado. Por favor, tente novamente.");
-            }
-        } catch (Exception e) {
-            exibirErro("Erro ao tentar fazer login: " + e.getMessage());
+        List<Evaluator> existingEvaluators = evaluatorService.getAllEvaluators().stream()
+                .filter(e -> e.getName().equalsIgnoreCase(evaluatorName))
+                .collect(Collectors.toList());
+
+        if (!existingEvaluators.isEmpty()) {
+            this.loggedInEvaluator = existingEvaluators.get(0);
+            System.out.println(GREEN + "Identificado como avaliador existente: " + loggedInEvaluator.getName() + " (ID: " + loggedInEvaluator.getId() + ")" + RESET);
+        } else {
+            String newEmail = evaluatorName.toLowerCase().replace(" ", ".") + "@empresa.com";
+            Evaluator newEvaluator = Evaluator.builder()
+                    .name(evaluatorName)
+                    .email(newEmail)
+                    .build();
+            this.loggedInEvaluator = evaluatorService.createEvaluator(newEvaluator);
+            System.out.println(GREEN + "Novo avaliador registrado: " + loggedInEvaluator.getName() + " (ID: " + loggedInEvaluator.getId() + ")" + RESET);
         }
+        menuFuncionarioLogado();
     }
 
     private void menuFuncionarioLogado() {
@@ -235,7 +234,7 @@ public class ConsoleApplication implements CommandLineRunner {
 
     private void avaliarGerente() {
         if (loggedInEvaluator == null) {
-            exibirErro("Você precisa estar logado para avaliar um gerente.");
+            exibirErro("Você precisa estar identificado para avaliar um gerente.");
             return;
         }
 
@@ -246,13 +245,10 @@ public class ConsoleApplication implements CommandLineRunner {
         System.out.print("ID do Gerente a ser avaliado: ");
         Long evaluatedId = lerLongId();
 
-        ManagerType managerType = selectManagerType();
-
         try {
             Evaluated evaluated = evaluatedService.getEvaluatedById(evaluatedId)
                     .orElseThrow(() -> new ResourceNotFoundException("Gerente (Avaliado) não encontrado com ID: " + evaluatedId));
 
-            // GERAR TÍTULO E DESCRIÇÃO PADRÃO
             String title = "Avaliação de Gerente por " + loggedInEvaluator.getName() + " em " + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"));
             String description = "Avaliação de habilidades do gerente " + evaluated.getName() + " realizada por " + loggedInEvaluator.getName() + ".";
             LocalDateTime now = LocalDateTime.now();
@@ -265,115 +261,55 @@ public class ConsoleApplication implements CommandLineRunner {
                     .endDate(now)
                     .evaluated(evaluated)
                     .evaluator(loggedInEvaluator)
-                    .managerType(managerType)
                     .build();
 
             Set<Characteristic> characteristics = new HashSet<>();
-            System.out.println(CYAN + "\n--- SELECIONAR CARACTERÍSTICAS PARA AVALIAR ---" + RESET);
+            Map<String, Double> categoryScores = new HashMap<>();
+            Map<String, Integer> categoryCounts = new HashMap<>();
 
-            String continueSelectingChars = "s";
-            do {
-                System.out.println(PURPLE + "\nSelecione a Categoria de Habilidade:" + RESET);
-                System.out.println("1. Administrativa");
-                System.out.println("2. Técnica");
-                System.out.println("3. Pessoal");
-                System.out.println("0. Concluir seleção de categorias (se não quiser mais adicionar)");
-                System.out.print(YELLOW + "Opção: " + RESET);
-                int categoryChoice = lerInteiro();
+            System.out.println(CYAN + "\n--- AVALIANDO CARACTERÍSTICAS ---" + RESET);
 
-                String selectedCategory = null;
-                boolean skipToNextIteration = false;
+            int totalCharacteristics = predefinedSkillIndicators.size();
+            int evaluatedCount = 0;
 
-                switch (categoryChoice) {
-                    case 1: selectedCategory = "ADMINISTRATIVE"; break;
-                    case 2: selectedCategory = "TECHNICAL"; break;
-                    case 3: selectedCategory = "PERSONAL"; break;
-                    case 0:
-                        continueSelectingChars = "n";
-                        skipToNextIteration = true;
-                        break;
-                    default:
-                        exibirErro("Opção inválida. Tente novamente.");
-                        skipToNextIteration = true;
-                        break;
-                }
+            for (int i = 0; i < totalCharacteristics; i++) {
+                SkillIndicator indicator = predefinedSkillIndicators.get(i);
+                System.out.println(PURPLE + "\n--- Característica " + (i + 1) + " de " + totalCharacteristics + ": " + indicator.name + " ---" + RESET);
+                System.out.println(BLUE + "Descrição: " + indicator.description + RESET);
+                System.out.println(BLUE + "Categoria: " + indicator.skillCategory + RESET);
 
-                if (skipToNextIteration) {
+                Characteristic characteristic = Characteristic.builder()
+                        .name(indicator.name)
+                        .description(indicator.description)
+                        .skillCategory(indicator.skillCategory)
+                        .evaluation(newEvaluation)
+                        .build();
+
+                Set<Rating> ratings = new HashSet<>();
+                System.out.print("Pontuação (1-5): ");
+                Integer score = lerInteiro();
+                if (score < 1 || score > 5) {
+                    exibirErro("A pontuação deve ser entre 1 e 5. Esta característica não será salva na avaliação.");
                     continue;
                 }
 
-                if (selectedCategory != null) {
-                    final String categoryToFilter = selectedCategory; // Cópia final efetiva
+                Rating rating = Rating.builder()
+                        .score(score)
+                        .comment("")
+                        .evaluator(loggedInEvaluator)
+                        .characteristic(characteristic)
+                        .evaluation(newEvaluation)
+                        .build();
+                ratings.add(rating);
 
-                    List<SkillIndicator> indicatorsForCategory = predefinedSkillIndicators.stream()
-                            .filter(si -> si.skillCategory.equalsIgnoreCase(categoryToFilter))
-                            .collect(Collectors.toList());
+                characteristic.setRatings(ratings);
+                characteristics.add(characteristic);
+                evaluatedCount++;
 
-                    if (indicatorsForCategory.isEmpty()) {
-                        System.out.println(YELLOW + "Nenhum indicador pré-definido para esta categoria." + RESET);
-                    } else {
-                        System.out.println(BLUE + "\nIndicadores Disponíveis para " + selectedCategory + ":" + RESET);
-                        for (int i = 0; i < indicatorsForCategory.size(); i++) {
-                            System.out.println((i + 1) + ". " + indicatorsForCategory.get(i).name);
-                        }
-                        System.out.print(YELLOW + "Digite o(s) número(s) do(s) indicador(es) para avaliar (ex: 1,3,5): " + RESET);
-                        String input = scanner.nextLine();
-                        Set<Integer> choices = new HashSet<>();
-                        try {
-                            choices = Arrays.stream(input.split(","))
-                                    .map(String::trim)
-                                    .filter(s -> !s.isEmpty())
-                                    .map(Integer::parseInt)
-                                    .collect(Collectors.toSet());
-                        } catch (NumberFormatException e) {
-                            exibirErro("Entrada inválida. Digite apenas números separados por vírgula.");
-                            continue;
-                        }
+                categoryScores.merge(indicator.skillCategory, (double) score, Double::sum);
+                categoryCounts.merge(indicator.skillCategory, 1, Integer::sum);
 
-
-                        for (Integer choice : choices) {
-                            if (choice > 0 && choice <= indicatorsForCategory.size()) {
-                                SkillIndicator chosenIndicator = indicatorsForCategory.get(choice - 1);
-
-                                Characteristic characteristic = Characteristic.builder()
-                                        .name(chosenIndicator.name)
-                                        .description(chosenIndicator.description)
-                                        .skillCategory(chosenIndicator.skillCategory)
-                                        .evaluation(newEvaluation)
-                                        .build();
-
-                                System.out.println(PURPLE + "\n--- Avaliando: " + chosenIndicator.name + " (" + chosenIndicator.skillCategory + ") ---" + RESET);
-                                Set<Rating> ratings = new HashSet<>();
-                                System.out.print("Pontuação (1-5): ");
-                                Integer score = lerInteiro();
-                                if (score < 1 || score > 5) {
-                                    exibirErro("A pontuação deve ser entre 1 e 5. Esta característica não será salva.");
-                                    continue;
-                                }
-                                // Removida a solicitação de comentário
-
-                                Rating rating = Rating.builder()
-                                        .score(score)
-                                        .comment(null) // Comentário agora é nulo ou string vazia
-                                        .evaluator(loggedInEvaluator)
-                                        .characteristic(characteristic)
-                                        .evaluation(newEvaluation)
-                                        .build();
-                                ratings.add(rating);
-
-                                characteristic.setRatings(ratings);
-                                characteristics.add(characteristic);
-                            } else {
-                                exibirErro("Número de indicador inválido: " + choice);
-                            }
-                        }
-                    }
-                }
-                if (continueSelectingChars.equalsIgnoreCase("s")) {
-                    System.out.print("\nDeseja selecionar mais características de outras categorias? (s/n): ");
-                    continueSelectingChars = scanner.nextLine();
-                }
-            } while (continueSelectingChars.equalsIgnoreCase("s"));
+            }
 
             if (characteristics.isEmpty()) {
                 System.out.println(YELLOW + "Nenhuma característica foi avaliada nesta sessão. Avaliação não será criada." + RESET);
@@ -381,6 +317,10 @@ public class ConsoleApplication implements CommandLineRunner {
             }
 
             newEvaluation.setCharacteristics(characteristics);
+
+            ManagerType determinedManagerType = determineManagerType(categoryScores, categoryCounts);
+            newEvaluation.setManagerType(determinedManagerType);
+            System.out.println(GREEN + "\n--- Tipo de Gestor Determinado: " + determinedManagerType.getDisplayValue() + " ---" + RESET);
 
             evaluationService.createEvaluation(newEvaluation);
             System.out.println(GREEN + "Avaliação do gerente criada com sucesso!" + RESET);
@@ -395,8 +335,39 @@ public class ConsoleApplication implements CommandLineRunner {
         }
     }
 
+    private ManagerType determineManagerType(Map<String, Double> categoryScores, Map<String, Integer> categoryCounts) {
+        String highestCategory = null;
+        double maxAverage = -1.0;
 
-    // --- Métodos de Relatórios (Mantidos) ---
+        System.out.println(CYAN + "\n--- Médias de Pontuação por Categoria ---" + RESET);
+        for (String categoryName : Arrays.asList("ADMINISTRATIVE", "TECHNICAL", "PERSONAL")) {
+            double totalScore = categoryScores.getOrDefault(categoryName, 0.0);
+            int count = categoryCounts.getOrDefault(categoryName, 0);
+
+            if (count > 0) {
+                double average = totalScore / count;
+                System.out.printf("  Média de %s: %.2f\n", categoryName, average);
+
+                if (average > maxAverage) {
+                    maxAverage = average;
+                    highestCategory = categoryName;
+                }
+            } else {
+                System.out.printf("  Média de %s: N/A (nenhuma característica avaliada nesta categoria)\n", categoryName);
+            }
+        }
+
+        if (highestCategory != null) {
+            try {
+                return ManagerType.valueOf(highestCategory.toUpperCase());
+            } catch (IllegalArgumentException e) {
+                return ManagerType.OTHER;
+            }
+        }
+        return ManagerType.OTHER;
+    }
+
+
     private void exibirMenuRelatorios() {
         int opt;
         do {
@@ -441,7 +412,6 @@ public class ConsoleApplication implements CommandLineRunner {
         } while (opt != 0);
     }
 
-    // --- Métodos de Listagem Auxiliares (Simplificados, usados apenas para seleção de IDs) ---
     private void listarAvaliados() {
         System.out.println(CYAN + "\n--- Gerentes/Avaliados Disponíveis ---" + RESET);
         List<Evaluated> evaluateds = evaluatedService.getAllEvaluated();
@@ -463,7 +433,6 @@ public class ConsoleApplication implements CommandLineRunner {
     }
 
 
-    // --- Métodos Auxiliares Comuns (Expandidos para melhor leitura) ---
     private Long lerLongId() {
         while (!scanner.hasNextLong()) {
             exibirErro("Inválido. Digite um número.");
