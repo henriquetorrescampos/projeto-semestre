@@ -470,58 +470,13 @@ public class ConsoleApplication implements CommandLineRunner {
         int opt;
         do {
             System.out.println(CYAN + "\n--- RELATÓRIOS ---" + RESET);
-            System.out.println("1. Dist. por Gestor\n2. Média por Gestor\n3. Resumos\n4. Média por Gestor e Habilidade\n0. Voltar");
+            System.out.println("1. Gerar Relatório Completo");
+            System.out.println("0. Voltar");
             System.out.print(YELLOW + "Escolha: " + RESET);
             opt = lerInteiro();
             switch (opt) {
                 case 1:
-                    System.out.println(CYAN + "\n--- DISTRIBUIÇÃO DE AVALIAÇÕES POR TIPO DE GESTOR ---" + RESET);
-                    List<Object[]> distribution = evaluationService.getManagerTypeDistribution();
-                    if (distribution.isEmpty()) {
-                        System.out.println(YELLOW + "Nenhum dado de distribuição encontrado." + RESET);
-                    } else {
-                        distribution.forEach(row ->
-                                System.out.printf("Tipo Gestor: %s, Contagem: %d\n", ((ManagerType) row[0]).getDisplayValue(), (Long) row[1]));
-                    }
-                    break;
-                case 2:
-                    System.out.println(CYAN + "\n--- MÉDIA DE PONTUAÇÃO POR TIPO DE GESTOR ---" + RESET);
-                    List<Object[]> averageScores = evaluationService.getAverageScoreByManagerType();
-                    if (averageScores.isEmpty()) {
-                        System.out.println(YELLOW + "Nenhum dado de média por tipo de gestor encontrado." + RESET);
-                    } else {
-                        averageScores.forEach(row ->
-                                System.out.printf("Tipo Gestor: %s, Média: %.2f\n", ((ManagerType) row[0]).getDisplayValue(), (Double) row[1]));
-                    }
-                    break;
-                case 3:
-                    System.out.println(CYAN + "\n--- RESUMOS DE AVALIAÇÕES ---" + RESET);
-                    List<Map<String, Object>> summaries = evaluationService.getEvaluationSummaries();
-                    if (summaries.isEmpty()) {
-                        System.out.println(YELLOW + "Nenhum resumo de avaliação encontrado." + RESET);
-                    } else {
-                        summaries.forEach(summary -> {
-                            System.out.printf("ID: %d, Título: %s, Avaliado: %s, Avaliador: %s, Média: %.2f\n",
-                                    (Long) summary.get("id"), (String) summary.get("title"),
-                                    (String) summary.get("evaluatedName"), (String) summary.get("evaluatorName"),
-                                    (Double) summary.get("averageScore"));
-                        });
-                    }
-                    break;
-                case 4:
-                    System.out.println(CYAN + "\n--- MÉDIA DE PONTUAÇÃO POR TIPO DE GESTOR E CATEGORIA DE HABILIDADE ---" + RESET);
-                    List<Object[]> avgSkillCat = evaluationService.getAverageScoreByManagerTypeAndSkillCategory();
-                    if (avgSkillCat.isEmpty()) {
-                        System.out.println(YELLOW + "Nenhum dado de média por tipo de gestor e categoria de habilidade encontrado." + RESET);
-                    } else {
-                        avgSkillCat.stream()
-                                .collect(Collectors.groupingBy(row -> (ManagerType) row[0]))
-                                .forEach((managerType, rows) -> {
-                                    System.out.println("Tipo Gestor: " + managerType.getDisplayValue());
-                                    rows.forEach(row ->
-                                            System.out.printf("  - Categoria: %s, Média: %.2f\n", (String) row[1], (Double) row[2]));
-                                });
-                    }
+                    gerarRelatorioCompleto();
                     break;
                 case 0:
                     System.out.println(GREEN + "Voltando..." + RESET);
@@ -530,6 +485,77 @@ public class ConsoleApplication implements CommandLineRunner {
                     exibirErro("Opção inválida.");
             }
         } while (opt != 0);
+    }
+
+    private void gerarRelatorioCompleto() {
+        System.out.println(CYAN + "\n--- RELATÓRIO GERAL DE AVALIAÇÕES DE DESEMPENHO ---" + RESET);
+        System.out.println(BLUE + "Nossa empresa valoriza o desenvolvimento contínuo de seus líderes. Este relatório consolida dados de avaliações de desempenho de gerentes, oferecendo insights sobre suas habilidades e perfis de liderança." + RESET);
+        System.out.println(BLUE + "Acreditamos que a compreensão desses dados nos ajuda a alocar talentos de forma mais eficaz e a promover um ambiente de crescimento." + RESET);
+
+        System.out.println(CYAN + "\n--- 1. DISTRIBUIÇÃO DE AVALIAÇÕES POR TIPO DE GESTOR ---" + RESET);
+        List<Object[]> distribution = evaluationService.getManagerTypeDistribution();
+        if (distribution.isEmpty()) {
+            System.out.println(YELLOW + "Nenhum dado de distribuição encontrado." + RESET);
+        } else {
+            distribution.forEach(row ->
+                    System.out.printf("Tipo Gestor: %s, Contagem: %d\n", ((ManagerType) row[0]).getDisplayValue(), (Long) row[1]));
+        }
+
+        System.out.println(CYAN + "\n--- 2. MÉDIA DE PONTUAÇÃO POR TIPO DE GESTOR ---" + RESET);
+        List<Object[]> averageScores = evaluationService.getAverageScoreByManagerType();
+        if (averageScores.isEmpty()) {
+            System.out.println(YELLOW + "Nenhum dado de média por tipo de gestor encontrado." + RESET);
+        } else {
+            averageScores.forEach(row ->
+                    System.out.printf("Tipo Gestor: %s, Média: %.2f\n", ((ManagerType) row[0]).getDisplayValue(), (Double) row[1]));
+        }
+
+        System.out.println(CYAN + "\n--- 3. MÉDIA DE PONTUAÇÃO POR TIPO DE GESTOR E CATEGORIA DE HABILIDADE ---" + RESET);
+        List<Object[]> avgSkillCat = evaluationService.getAverageScoreByManagerTypeAndSkillCategory();
+        if (avgSkillCat.isEmpty()) {
+            System.out.println(YELLOW + "Nenhum dado de média por tipo de gestor e categoria de habilidade encontrado." + RESET);
+        } else {
+            avgSkillCat.stream()
+                    .collect(Collectors.groupingBy(row -> (ManagerType) row[0]))
+                    .forEach((managerType, rows) -> {
+                        System.out.println("Tipo Gestor: " + managerType.getDisplayValue());
+                        rows.forEach(row ->
+                                System.out.printf("  - Categoria: %s, Média: %.2f\n", (String) row[1], (Double) row[2]));
+                    });
+        }
+
+        System.out.println(CYAN + "\n--- 4. ESTATÍSTICAS DETALHADAS POR CATEGORIA DE HABILIDADE ---" + RESET);
+        Map<String, List<Integer>> allScoresByCategory = new HashMap<>();
+        List<Evaluation> allEvalsForStats = evaluationService.getAllEvaluations();
+
+        for (Evaluation eval : allEvalsForStats) {
+            for (Characteristic charac : eval.getCharacteristics()) {
+                String category = charac.getSkillCategory();
+                if (charac.getRatings() != null && !charac.getRatings().isEmpty()) {
+                    charac.getRatings().forEach(rating -> {
+                        allScoresByCategory.computeIfAbsent(category, k -> new ArrayList<>()).add(rating.getScore());
+                    });
+                }
+            }
+        }
+
+        for (String categoryName : Arrays.asList("ADMINISTRATIVE", "TECHNICAL", "PERSONAL")) {
+            List<Integer> scores = allScoresByCategory.getOrDefault(categoryName, Collections.emptyList());
+            if (!scores.isEmpty()) {
+                double sum = scores.stream().mapToDouble(Integer::doubleValue).sum();
+                double mean = sum / scores.size();
+                double variance = scores.stream().mapToDouble(score -> Math.pow(score - mean, 2)).sum();
+                double stdDev = Math.sqrt(variance / (scores.size() - 1));
+
+                System.out.printf(BLUE + "Categoria: %s\n", categoryName);
+                System.out.printf("  Média Geral de Pontuação: %.2f\n", mean);
+                System.out.printf("  Desvio Padrão: %.2f\n", stdDev);
+                System.out.println(BLUE + "------------------------------------------" + RESET);
+            } else {
+                System.out.printf(YELLOW + "Categoria: %s - Sem dados de pontuação para análise.\n", categoryName);
+                System.out.println(YELLOW + "------------------------------------------" + RESET);
+            }
+        }
     }
 
     private void listarAvaliados() {

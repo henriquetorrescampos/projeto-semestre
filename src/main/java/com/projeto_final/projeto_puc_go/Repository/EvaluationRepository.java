@@ -4,9 +4,11 @@ import com.projeto_final.projeto_puc_go.Entity.Evaluation;
 import com.projeto_final.projeto_puc_go.Entity.ManagerType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface EvaluationRepository extends JpaRepository<Evaluation, Long> {
@@ -27,7 +29,10 @@ public interface EvaluationRepository extends JpaRepository<Evaluation, Long> {
     List<Evaluation> findByEvaluatedId(Long evaluatedId);
     List<Evaluation> findByEvaluatorId(Long evaluatorId);
 
-    // Adicionado um JOIN FETCH para carregar Evaluated e Evaluator ansiosamente
     @Query("SELECT e FROM Evaluation e JOIN FETCH e.evaluated ev JOIN FETCH e.evaluator eva")
     List<Evaluation> findAllWithEvaluatedAndEvaluator();
+
+    @EntityGraph(attributePaths = {"evaluated", "evaluator", "characteristics", "characteristics.ratings"})
+    Optional<Evaluation> findById(Long id); // Sobrescreve findById para carregar tudo ansiosamente
+
 }
