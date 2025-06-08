@@ -16,6 +16,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.function.Function;
 
 @Component
 public class ConsoleApplication implements CommandLineRunner {
@@ -489,8 +490,15 @@ public class ConsoleApplication implements CommandLineRunner {
 
     private void gerarRelatorioCompleto() {
         System.out.println(CYAN + "\n--- RELATÓRIO GERAL DE AVALIAÇÕES DE DESEMPENHO ---" + RESET);
-        System.out.println(BLUE + "Nossa empresa valoriza o desenvolvimento contínuo de seus líderes. Este relatório consolida dados de avaliações de desempenho de gerentes, oferecendo insights sobre suas habilidades e perfis de liderança." + RESET);
+        System.out.println(BLUE + "Nossa empresa valoriza o desenvolvimento contínuo de seus líderes." + RESET);
+        System.out.println(BLUE + "Este relatório consolida dados de avaliações de desempenho de gerentes, oferecendo insights sobre suas habilidades e perfis de liderança." + RESET);
         System.out.println(BLUE + "Acreditamos que a compreensão desses dados nos ajuda a alocar talentos de forma mais eficaz e a promover um ambiente de crescimento." + RESET);
+
+        // NOVO: Contagem Total de Avaliações Registradas
+        List<Evaluation> allEvaluationsForCount = evaluationService.getAllEvaluations();
+        System.out.println(CYAN + "\n--- 0. RESUMO GERAL ---" + RESET);
+        System.out.printf(BLUE + "Total de Avaliações Registradas: %d\n", allEvaluationsForCount.size());
+        System.out.println(BLUE + "------------------------------------------" + RESET);
 
         System.out.println(CYAN + "\n--- 1. DISTRIBUIÇÃO DE AVALIAÇÕES POR TIPO DE GESTOR ---" + RESET);
         List<Object[]> distribution = evaluationService.getManagerTypeDistribution();
@@ -526,6 +534,7 @@ public class ConsoleApplication implements CommandLineRunner {
 
         System.out.println(CYAN + "\n--- 4. ESTATÍSTICAS DETALHADAS POR CATEGORIA DE HABILIDADE ---" + RESET);
         Map<String, List<Integer>> allScoresByCategory = new HashMap<>();
+        List<Integer> overallScores = new ArrayList<>(); // Para média geral e distribuição
         List<Evaluation> allEvalsForStats = evaluationService.getAllEvaluations();
 
         for (Evaluation eval : allEvalsForStats) {
@@ -534,9 +543,20 @@ public class ConsoleApplication implements CommandLineRunner {
                 if (charac.getRatings() != null && !charac.getRatings().isEmpty()) {
                     charac.getRatings().forEach(rating -> {
                         allScoresByCategory.computeIfAbsent(category, k -> new ArrayList<>()).add(rating.getScore());
+                        overallScores.add(rating.getScore()); // Coleta para média geral
                     });
                 }
             }
+        }
+
+        // Pontuação Média Geral (de todas as características)
+        if (!overallScores.isEmpty()) {
+            double overallMean = overallScores.stream().mapToDouble(Integer::doubleValue).average().orElse(0.0);
+            System.out.printf(BLUE + "Média Geral de Pontuação (Todas as Características): %.2f\n", overallMean);
+            System.out.println(BLUE + "------------------------------------------" + RESET);
+        } else {
+            System.out.println(YELLOW + "Nenhuma pontuação geral encontrada para análise." + RESET);
+            System.out.println(YELLOW + "------------------------------------------" + RESET);
         }
 
         for (String categoryName : Arrays.asList("ADMINISTRATIVE", "TECHNICAL", "PERSONAL")) {
@@ -544,18 +564,55 @@ public class ConsoleApplication implements CommandLineRunner {
             if (!scores.isEmpty()) {
                 double sum = scores.stream().mapToDouble(Integer::doubleValue).sum();
                 double mean = sum / scores.size();
-                double variance = scores.stream().mapToDouble(score -> Math.pow(score - mean, 2)).sum();
-                double stdDev = Math.sqrt(variance / (scores.size() - 1));
+
+                // Desvio Padrão (amostral)
+                double variance = 0.0;
+                if (scores.size() > 1) { // Evita divisão por zero
+                    variance = scores.stream().mapToDouble(score -> Math.pow(score - mean, 2)).sum() / (scores.size() - 1);
+                }
+                double stdDev = Math.sqrt(variance);
+
+                // Mediana
+                List<Integer> sortedScores = new ArrayList<>(scores);
+                Collections.sort(sortedScores);
+                double median;
+                if (sortedScores.size() % 2 == 1) {
+                    median = sortedScores.get(sortedScores.size() / 2);
+                } else {
+                    median = (sortedScores.get(sortedScores.size() / 2 - 1) + sortedScores.get(sortedScores.size() / 2)) / 2.0;
+                }
+
+                // Mínima e Máxima
+                int minScore = scores.stream().mapToInt(Integer::intValue).min().orElse(0);
+                int maxScore = scores.stream().mapToInt(Integer::intValue).max().orElse(0);
 
                 System.out.printf(BLUE + "Categoria: %s\n", categoryName);
                 System.out.printf("  Média Geral de Pontuação: %.2f\n", mean);
+                System.out.printf("  Mediana: %.2f\n", median);
                 System.out.printf("  Desvio Padrão: %.2f\n", stdDev);
+                System.out.printf("  Pontuação Mínima: %d\n", minScore);
+                System.out.printf("  Pontuação Máxima: %d\n", maxScore);
                 System.out.println(BLUE + "------------------------------------------" + RESET);
             } else {
                 System.out.printf(YELLOW + "Categoria: %s - Sem dados de pontuação para análise.\n", categoryName);
                 System.out.println(YELLOW + "------------------------------------------" + RESET);
             }
         }
+
+        // Distribuição de Pontuações (Frequência de cada nota)
+        System.out.println(CYAN + "\n--- 5. DISTRIBUIÇÃO GERAL DE PONTUAÇÕES ---" + RESET);
+        if (!overallScores.isEmpty()) {
+            Map<Integer, Long> scoreDistribution = overallScores.stream()
+                    .collect(Collectors.groupingBy(Function.identity(), Collectors.counting()));
+
+            // Garante que todas as pontuações de 1 a 5 sejam exibidas, mesmo que não tenham ocorrido
+            for (int i = 1; i <= 5; i++) {
+                System.out.printf(BLUE + "  Pontuação %d: %d ocorrências\n", i, scoreDistribution.getOrDefault(i, 0L));
+            }
+        } else {
+            System.out.println(YELLOW + "Nenhuma pontuação geral encontrada para análise de distribuição." + RESET);
+        }
+        System.out.println(BLUE + "------------------------------------------" + RESET);
     }
 
     private void listarAvaliados() {
