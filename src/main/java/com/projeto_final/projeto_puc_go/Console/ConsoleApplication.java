@@ -1,39 +1,22 @@
 package com.projeto_final.projeto_puc_go.Console;
 
-import com.projeto_final.projeto_puc_go.ProjetoPucGoApplication;
-import com.projeto_final.projeto_puc_go.Entity.Evaluated;
-import com.projeto_final.projeto_puc_go.Entity.Evaluator;
-import com.projeto_final.projeto_puc_go.Entity.Evaluation;
-import com.projeto_final.projeto_puc_go.Entity.Characteristic;
-import com.projeto_final.projeto_puc_go.Entity.Rating;
-import com.projeto_final.projeto_puc_go.Entity.ManagerType; // Importar o enum ManagerType
+import com.projeto_final.projeto_puc_go.Entity.*;
 import com.projeto_final.projeto_puc_go.Service.EvaluatedService;
 import com.projeto_final.projeto_puc_go.Service.EvaluatorService;
 import com.projeto_final.projeto_puc_go.Service.EvaluationService;
 import com.projeto_final.projeto_puc_go.Service.CharacteristicService;
 import com.projeto_final.projeto_puc_go.Service.RatingService;
 import com.projeto_final.projeto_puc_go.Exception.ResourceNotFoundException;
-import com.projeto_final.projeto_puc_go.Dto.ManagerTypeAverageScoreDto;
-import com.projeto_final.projeto_puc_go.Dto.ManagerTypeDistributionDto;
-import com.projeto_final.projeto_puc_go.Dto.EvaluationSummaryDto;
-import com.projeto_final.projeto_puc_go.Dto.EvaluationDetailDto;
-import com.projeto_final.projeto_puc_go.Dto.ManagerTypeSkillAverageDto; // Importar o novo DTO
-
 import org.springframework.boot.CommandLineRunner;
-import org.springframework.context.annotation.Profile;
+import org.springframework.boot.SpringApplication;
+import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.stereotype.Component;
-
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
-import java.util.ArrayList;
-import java.util.InputMismatchException;
-import java.util.List;
-import java.util.Optional;
-import java.util.Scanner;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
-import org.springframework.stereotype.Component;
+import java.util.function.Function;
 
 @Component
 public class ConsoleApplication implements CommandLineRunner {
@@ -44,1341 +27,693 @@ public class ConsoleApplication implements CommandLineRunner {
     private final CharacteristicService characteristicService;
     private final RatingService ratingService;
     private final Scanner scanner;
+    private final ConfigurableApplicationContext context;
 
-    // Cores para o console
+    private Evaluator loggedInEvaluator;
+
     public static final String RESET = "\u001B[0m";
-    public static final String BLACK = "\u001B[30m";
     public static final String RED = "\u001B[31m";
     public static final String GREEN = "\u001B[32m";
     public static final String YELLOW = "\u001B[33m";
+    public static final String CYAN = "\u001B[36m";
     public static final String BLUE = "\u001B[34m";
     public static final String PURPLE = "\u001B[35m";
-    public static final String CYAN = "\u001B[36m";
-    public static final String WHITE = "\u001B[37m";
 
-    public ConsoleApplication(EvaluatedService evaluatedService,
-                              EvaluatorService evaluatorService,
-                              EvaluationService evaluationService,
-                              CharacteristicService characteristicService,
-                              RatingService ratingService) {
+    private static class SkillIndicator {
+        String name;
+        String description;
+        String skillCategory;
+
+        public SkillIndicator(String name, String description, String skillCategory) {
+            this.name = name;
+            this.description = description;
+            this.skillCategory = skillCategory;
+        }
+
+        @Override
+        public String toString() {
+            return name + " (" + skillCategory + ") - " + description;
+        }
+    }
+
+    private static final List<SkillIndicator> predefinedSkillIndicators = new ArrayList<>();
+
+    static {
+        predefinedSkillIndicators.add(new SkillIndicator(
+                "Visão de Oportunidades/Inovações",
+                "Elabora uma boa visão de oportunidades/inovações para o grupo e para a companhia",
+                "ADMINISTRATIVE"
+        ));
+        predefinedSkillIndicators.add(new SkillIndicator(
+                "Facilitador de Mudanças",
+                "Atua como facilitador para grandes mudanças que ocorrem no grupo e/ou na companhia",
+                "ADMINISTRATIVE"
+        ));
+        predefinedSkillIndicators.add(new SkillIndicator(
+                "Comunicação de Prioridades Estratégicas",
+                "Comunica as prioridades estratégicas de sua divisão/grupo/departamento",
+                "ADMINISTRATIVE"
+        ));
+        predefinedSkillIndicators.add(new SkillIndicator(
+                "Consegue Recursos Necessários",
+                "Consegue recursos necessários para a equipe",
+                "ADMINISTRATIVE"
+        ));
+        predefinedSkillIndicators.add(new SkillIndicator(
+                "Cria Clima Produtivo",
+                "Cria o clima produtivo necessário para a condução das tarefas",
+                "ADMINISTRATIVE"
+        ));
+        predefinedSkillIndicators.add(new SkillIndicator(
+                "Conduz Planos e Cronogramas",
+                "Conduz planos e cronogramas necessários",
+                "ADMINISTRATIVE"
+        ));
+
+        predefinedSkillIndicators.add(new SkillIndicator(
+                "Boas Ideias para Tarefas Técnicas",
+                "Apresenta boas idéias de como realizar tarefas na sua área de atuação específica",
+                "TECHNICAL"
+        ));
+        predefinedSkillIndicators.add(new SkillIndicator(
+                "Conhecimento de Informações Relevantes",
+                "Apresenta conhecimento sobre as informações relevantes ao trabalho de cada membro equipe",
+                "TECHNICAL"
+        ));
+        predefinedSkillIndicators.add(new SkillIndicator(
+                "Entendimento de Técnicas e Métodos",
+                "Tem um bom entendimento das técnicas e métodos aplicados em seu trabalho",
+                "TECHNICAL"
+        ));
+        predefinedSkillIndicators.add(new SkillIndicator(
+                "Mentor para Equipe Técnica",
+                "É um mentor para sua equipe técnica",
+                "TECHNICAL"
+        ));
+
+        predefinedSkillIndicators.add(new SkillIndicator(
+                "Incentivo e Encorajamento",
+                "Promove incentivo e encorajamento para as tarefas realizadas pela equipe",
+                "PERSONAL"
+        ));
+        predefinedSkillIndicators.add(new SkillIndicator(
+                "Reconhecimento por Tarefa Realizada",
+                "Promove reconhecimento por uma tarefa bem realizada",
+                "PERSONAL"
+        ));
+        predefinedSkillIndicators.add(new SkillIndicator(
+                "Entusiasmo pelo Trabalho",
+                "Promove o entusiasmo pelo trabalho de forma lúcida (com bom senso)",
+                "PERSONAL"
+        ));
+        predefinedSkillIndicators.add(new SkillIndicator(
+                "Sensibilidade a Diferenças Individuais",
+                "Possui sensibilidade e discernimento das diferenças individuais",
+                "PERSONAL"
+        ));
+        predefinedSkillIndicators.add(new SkillIndicator(
+                "Conduz Pessoas a Trabalhar Juntas",
+                "Conduz pessoas a trabalharem bem juntas",
+                "PERSONAL"
+        ));
+        predefinedSkillIndicators.add(new SkillIndicator(
+                "Promove Avaliações Críticas",
+                "Promove avaliações críticas buscando o bom e o factível/realizável",
+                "PERSONAL"
+        ));
+    }
+
+
+    public ConsoleApplication(EvaluatedService evaluatedService, EvaluatorService evaluatorService,
+                              EvaluationService evaluationService, CharacteristicService characteristicService,
+                              RatingService ratingService, ConfigurableApplicationContext context) {
         this.evaluatedService = evaluatedService;
         this.evaluatorService = evaluatorService;
         this.evaluationService = evaluationService;
         this.characteristicService = characteristicService;
         this.ratingService = ratingService;
         this.scanner = new Scanner(System.in);
-
-    }
-
-    public void runConsoleApplication() {
-        // Toda a lógica da sua aplicação de console viria aqui
-        System.out.println("Aplicação de console iniciada!");
-        // Ex: menu interativo, chamadas a serviços, etc.
+        this.context = context;
     }
 
     @Override
     public void run(String... args) {
-        System.out.println(GREEN + "Iniciando o aplicativo de console do Projeto PUC-GO..." + RESET);
+        System.out.println(GREEN + "App Console Iniciado!" + RESET);
         exibirMenuPrincipal();
     }
 
     private void exibirMenuPrincipal() {
-        int opcao;
+        int opt;
         do {
             System.out.println(CYAN + "\n--- MENU PRINCIPAL ---" + RESET);
-            System.out.println("1. Gerenciar Avaliados");
-            System.out.println("2. Gerenciar Avaliadores");
-            System.out.println("3. Gerenciar Avaliações");
-            System.out.println("4. Gerenciar Características");
-            System.out.println("5. Gerenciar Notas (Ratings)");
-            System.out.println("6. Relatórios de Avaliação");
+            System.out.println("1. Entrar como Funcionário");
+            System.out.println("2. Ver Cálculos Estatísticos");
             System.out.println("0. Sair");
-            System.out.print(YELLOW + "Escolha uma opção: " + RESET);
-            opcao = lerInteiro();
-
-            switch (opcao) {
+            System.out.print(YELLOW + "Escolha: " + RESET);
+            opt = lerInteiro();
+            switch (opt) {
                 case 1:
-                    gerenciarAvaliados();
+                    realizarRegistroFuncionario();
                     break;
                 case 2:
-                    gerenciarAvaliadores();
-                    break;
-                case 3:
-                    gerenciarAvaliacoes();
-                    break;
-                case 4:
-                    gerenciarCaracteristicas();
-                    break;
-                case 5:
-                    gerenciarNotas();
-                    break;
-                case 6:
                     exibirMenuRelatorios();
                     break;
                 case 0:
                     System.out.println(GREEN + "Saindo do aplicativo. Até mais!" + RESET);
+                    scanner.close();
+                    SpringApplication.exit(context, () -> 0);
+                    System.exit(0);
                     break;
                 default:
                     exibirErro("Opção inválida. Tente novamente.");
             }
-        } while (opcao != 0);
-        scanner.close();
+        } while (opt != 0);
     }
 
-    private void exibirMenuRelatorios() {
-        int opcao;
-        do {
-            System.out.println(CYAN + "\n--- MENU DE RELATÓRIOS ---" + RESET);
-            System.out.println("1. Distribuição de Avaliações por Tipo de Gestor");
-            System.out.println("2. Média de Pontuação por Tipo de Gestor");
-            System.out.println("3. Resumos de Avaliações");
-            System.out.println("4. Média de Pontuação por Tipo de Gestor e Categoria de Habilidade"); // Nova opção
-            System.out.println("0. Voltar ao Menu Principal");
-            System.out.print(YELLOW + "Escolha uma opção: " + RESET);
-            opcao = lerInteiro();
+    private void realizarRegistroFuncionario() {
+        System.out.println(CYAN + "\n--- IDENTIFICAÇÃO DO FUNCIONÁRIO ---" + RESET);
+        System.out.print("Digite seu NOME: ");
+        String evaluatorName = scanner.nextLine();
 
-            switch (opcao) {
-                case 1:
-                    exibirDistribuicaoPorTipoGestor();
-                    break;
-                case 2:
-                    exibirMediaPorTipoGestor();
-                    break;
-                case 3:
-                    exibirResumosAvaliacoes();
-                    break;
-                case 4: // Novo case
-                    exibirMediaPorTipoGestorEHabilidade();
-                    break;
-                case 0:
-                    System.out.println(GREEN + "Voltando ao Menu Principal..." + RESET);
-                    break;
-                default:
-                    exibirErro("Opção inválida. Tente novamente.");
-            }
-        } while (opcao != 0);
-    }
+        List<Evaluator> existingEvaluators = evaluatorService.getAllEvaluators().stream()
+                .filter(e -> e.getName().equalsIgnoreCase(evaluatorName))
+                .collect(Collectors.toList());
 
-    // --- Métodos de Gerenciamento de Avaliados ---
-    private void gerenciarAvaliados() {
-        // ... (código existente para gerenciar avaliados)
-        int subOpcao;
-        do {
-            System.out.println(CYAN + "\n--- GERENCIAR AVALIADOS ---" + RESET);
-            System.out.println("1. Cadastrar Avaliado");
-            System.out.println("2. Listar Avaliados");
-            System.out.println("3. Buscar Avaliado por ID");
-            System.out.println("4. Atualizar Avaliado");
-            System.out.println("5. Excluir Avaliado");
-            System.out.println("0. Voltar");
-            System.out.print(YELLOW + "Escolha uma opção: " + RESET);
-            subOpcao = lerInteiro();
-
-            switch (subOpcao) {
-                case 1:
-                    cadastrarAvaliado();
-                    break;
-                case 2:
-                    listarAvaliados();
-                    break;
-                case 3:
-                    buscarAvaliadoPorId();
-                    break;
-                case 4:
-                    atualizarAvaliado();
-                    break;
-                case 5:
-                    excluirAvaliado();
-                    break;
-                case 0:
-                    System.out.println(GREEN + "Voltando..." + RESET);
-                    break;
-                default:
-                    exibirErro("Opção inválida.");
-            }
-        } while (subOpcao != 0);
-    }
-
-    private void cadastrarAvaliado() {
-        System.out.println(CYAN + "\n--- CADASTRAR AVALIADO ---" + RESET);
-        System.out.print("Nome do Avaliado: ");
-        String name = scanner.nextLine();
-        System.out.print("Feedback (opcional, ENTER para pular): ");
-        String feedback = scanner.nextLine();
-
-        listarAvaliadores();
-        System.out.print("ID do Avaliador associado: ");
-        Long evaluatorId = lerLongId();
-
-        try {
-            Evaluator evaluator = evaluatorService.getEvaluatorById(evaluatorId)
-                    .orElseThrow(() -> new ResourceNotFoundException("Avaliador não encontrado com ID: " + evaluatorId));
-
-            Evaluated newEvaluated = Evaluated.builder()
-                    .name(name)
-                    .feedback(feedback.isEmpty() ? null : feedback)
-                    .evaluator(evaluator)
-                    .build();
-
-            Evaluated savedEvaluated = evaluatedService.createEvaluated(newEvaluated);
-            System.out.println(GREEN + "Avaliado cadastrado com sucesso! ID: " + savedEvaluated.getId() + RESET);
-        } catch (ResourceNotFoundException e) {
-            exibirErro(e.getMessage());
-        } catch (Exception e) {
-            exibirErro("Erro ao cadastrar avaliado: " + e.getMessage());
-        }
-    }
-
-    private void listarAvaliados() {
-        List<Evaluated> evaluateds = evaluatedService.getAllEvaluated();
-        exibirLista("LISTA DE AVALIADOS", evaluateds);
-    }
-
-    private void buscarAvaliadoPorId() {
-        System.out.print("Digite o ID do Avaliado: ");
-        Long id = lerLongId();
-        Optional<Evaluated> evaluated = evaluatedService.getEvaluatedById(id);
-        if (evaluated.isPresent()) {
-            System.out.println(CYAN + "\n--- DETALHES DO AVALIADO ---" + RESET);
-            System.out.println("ID: " + evaluated.get().getId());
-            System.out.println("Nome: " + evaluated.get().getName());
-            System.out.println("Feedback: " + (evaluated.get().getFeedback() != null ? evaluated.get().getFeedback() : "N/A"));
-            System.out.println("Avaliador: " + (evaluated.get().getEvaluator() != null ? evaluated.get().getEvaluator().getName() : "N/A"));
-            System.out.println("Criado em: " + evaluated.get().getCreatedAt());
-            System.out.println("Última Atualização: " + (evaluated.get().getUpdatedAt() != null ? evaluated.get().getUpdatedAt() : "N/A"));
+        if (!existingEvaluators.isEmpty()) {
+            this.loggedInEvaluator = existingEvaluators.get(0);
+            System.out.println(GREEN + "Identificado como avaliador existente: " + loggedInEvaluator.getName() + " (ID: " + loggedInEvaluator.getId() + ")" + RESET);
         } else {
-            exibirErro("Avaliado não encontrado.");
-        }
-    }
-
-    private void atualizarAvaliado() {
-        System.out.print("Digite o ID do Avaliado a ser atualizado: ");
-        Long id = lerLongId();
-        Optional<Evaluated> existingEvaluatedOpt = evaluatedService.getEvaluatedById(id);
-
-        if (existingEvaluatedOpt.isPresent()) {
-            Evaluated existingEvaluated = existingEvaluatedOpt.get();
-            System.out.println(CYAN + "\n--- ATUALIZAR AVALIADO (ID: " + id + ") ---" + RESET);
-            System.out.print("Novo Nome (" + existingEvaluated.getName() + "): ");
-            String newName = scanner.nextLine();
-            if (!newName.isEmpty()) {
-                existingEvaluated.setName(newName);
-            }
-
-            System.out.print("Novo Feedback (atual: " + (existingEvaluated.getFeedback() != null ? existingEvaluated.getFeedback() : "N/A") + ", ENTER para manter): ");
-            String newFeedback = scanner.nextLine();
-            if (!newFeedback.isEmpty()) {
-                existingEvaluated.setFeedback(newFeedback);
-            }
-
-            listarAvaliadores();
-            System.out.print("Novo ID do Avaliador (atual: " + (existingEvaluated.getEvaluator() != null ? existingEvaluated.getEvaluator().getId() : "N/A") + ", ENTER para manter): ");
-            String evaluatorIdStr = scanner.nextLine();
-            if (!evaluatorIdStr.isEmpty()) {
-                try {
-                    Long newEvaluatorId = Long.parseLong(evaluatorIdStr);
-                    Evaluator newEvaluator = evaluatorService.getEvaluatorById(newEvaluatorId)
-                            .orElseThrow(() -> new ResourceNotFoundException("Novo Avaliador não encontrado com ID: " + newEvaluatorId));
-                    existingEvaluated.setEvaluator(newEvaluator);
-                } catch (NumberFormatException e) {
-                    exibirErro("ID do Avaliador inválido. Mantendo o avaliador atual.");
-                } catch (ResourceNotFoundException e) {
-                    exibirErro(e.getMessage() + ". Mantendo o avaliador atual.");
-                }
-            }
-
-            Optional<Evaluated> updatedEvaluated = evaluatedService.updateEvaluated(id, existingEvaluated);
-            if (updatedEvaluated.isPresent()) {
-                System.out.println(GREEN + "Avaliado atualizado com sucesso!" + RESET);
-            } else {
-                exibirErro("Falha ao atualizar avaliado.");
-            }
-        } else {
-            exibirErro("Avaliado não encontrado com ID: " + id);
-        }
-    }
-
-    private void excluirAvaliado() {
-        System.out.print("Digite o ID do Avaliado a ser excluído: ");
-        Long id = lerLongId();
-        try {
-            boolean deleted = evaluatedService.deleteEvaluated(id);
-            if (deleted) {
-                System.out.println(GREEN + "Avaliado excluído com sucesso!" + RESET);
-            } else {
-                exibirErro("Avaliado não encontrado.");
-            }
-        } catch (ResourceNotFoundException e) {
-            exibirErro(e.getMessage());
-        } catch (Exception e) {
-            exibirErro("Erro ao excluir avaliado: " + e.getMessage());
-        }
-    }
-
-    // --- Métodos de Gerenciamento de Avaliadores ---
-    private void gerenciarAvaliadores() {
-        // ... (código existente para gerenciar avaliadores)
-        int subOpcao;
-        do {
-            System.out.println(CYAN + "\n--- GERENCIAR AVALIADORES ---" + RESET);
-            System.out.println("1. Cadastrar Avaliador");
-            System.out.println("2. Listar Avaliadores");
-            System.out.println("3. Buscar Avaliador por ID");
-            System.out.println("4. Atualizar Avaliador");
-            System.out.println("5. Excluir Avaliador");
-            System.out.println("0. Voltar");
-            System.out.print(YELLOW + "Escolha uma opção: " + RESET);
-            subOpcao = lerInteiro();
-
-            switch (subOpcao) {
-                case 1:
-                    cadastrarAvaliador();
-                    break;
-                case 2:
-                    listarAvaliadores();
-                    break;
-                case 3:
-                    buscarAvaliadorPorId();
-                    break;
-                case 4:
-                    atualizarAvaliador();
-                    break;
-                case 5:
-                    excluirAvaliador();
-                    break;
-                case 0:
-                    System.out.println(GREEN + "Voltando..." + RESET);
-                    break;
-                default:
-                    exibirErro("Opção inválida.");
-            }
-        } while (subOpcao != 0);
-    }
-
-    private void cadastrarAvaliador() {
-        System.out.println(CYAN + "\n--- CADASTRAR AVALIADOR ---" + RESET);
-        System.out.print("Nome do Avaliador: ");
-        String name = scanner.nextLine();
-        System.out.print("Email do Avaliador: ");
-        String email = scanner.nextLine();
-
-        try {
+            String newEmail = evaluatorName.toLowerCase().replace(" ", ".") + "@empresa.com";
             Evaluator newEvaluator = Evaluator.builder()
-                    .name(name)
-                    .email(email)
+                    .name(evaluatorName)
+                    .email(newEmail)
                     .build();
-            Evaluator savedEvaluator = evaluatorService.createEvaluator(newEvaluator);
-            System.out.println(GREEN + "Avaliador cadastrado com sucesso! ID: " + savedEvaluator.getId() + RESET);
-        } catch (Exception e) {
-            exibirErro("Erro ao cadastrar avaliador: " + e.getMessage());
+            this.loggedInEvaluator = evaluatorService.createEvaluator(newEvaluator);
+            System.out.println(GREEN + "Novo avaliador registrado: " + loggedInEvaluator.getName() + " (ID: " + loggedInEvaluator.getId() + ")" + RESET);
         }
+        menuFuncionarioLogado();
     }
 
-    private void listarAvaliadores() {
-        List<Evaluator> evaluators = evaluatorService.getAllEvaluators();
-        exibirLista("LISTA DE AVALIADORES", evaluators);
-    }
-
-    private void buscarAvaliadorPorId() {
-        System.out.print("Digite o ID do Avaliador: ");
-        Long id = lerLongId();
-        Optional<Evaluator> evaluator = evaluatorService.getEvaluatorById(id);
-        if (evaluator.isPresent()) {
-            System.out.println(CYAN + "\n--- DETALHES DO AVALIADOR ---" + RESET);
-            System.out.println("ID: " + evaluator.get().getId());
-            System.out.println("Nome: " + evaluator.get().getName());
-            System.out.println("Email: " + evaluator.get().getEmail());
-            System.out.println("Criado em: " + evaluator.get().getCreatedAt());
-            System.out.println("Última Atualização: " + (evaluator.get().getUpdatedAt() != null ? evaluator.get().getUpdatedAt() : "N/A"));
-        } else {
-            exibirErro("Avaliador não encontrado.");
-        }
-    }
-
-    private void atualizarAvaliador() {
-        System.out.print("Digite o ID do Avaliador a ser atualizado: ");
-        Long id = lerLongId();
-        Optional<Evaluator> existingEvaluatorOpt = evaluatorService.getEvaluatorById(id);
-
-        if (existingEvaluatorOpt.isPresent()) {
-            Evaluator existingEvaluator = existingEvaluatorOpt.get();
-            System.out.println(CYAN + "\n--- ATUALIZAR AVALIADOR (ID: " + id + ") ---" + RESET);
-            System.out.print("Novo Nome (" + existingEvaluator.getName() + "): ");
-            String newName = scanner.nextLine();
-            if (!newName.isEmpty()) {
-                existingEvaluator.setName(newName);
-            }
-
-            System.out.print("Novo Email (" + existingEvaluator.getEmail() + "): ");
-            String newEmail = scanner.nextLine();
-            if (!newEmail.isEmpty()) {
-                existingEvaluator.setEmail(newEmail);
-            }
-
-            Optional<Evaluator> updatedEvaluator = evaluatorService.updateEvaluator(id, existingEvaluator);
-            if (updatedEvaluator.isPresent()) {
-                System.out.println(GREEN + "Avaliador atualizado com sucesso!" + RESET);
-            } else {
-                exibirErro("Falha ao atualizar avaliador.");
-            }
-        } else {
-            exibirErro("Avaliador não encontrado com ID: " + id);
-        }
-    }
-
-    private void excluirAvaliador() {
-        System.out.print("Digite o ID do Avaliador a ser excluído: ");
-        Long id = lerLongId();
-        try {
-            boolean deleted = evaluatorService.deleteEvaluator(id);
-            if (deleted) {
-                System.out.println(GREEN + "Avaliador excluído com sucesso!" + RESET);
-            } else {
-                exibirErro("Avaliador não encontrado.");
-            }
-        } catch (ResourceNotFoundException e) {
-            exibirErro(e.getMessage());
-        } catch (Exception e) {
-            exibirErro("Erro ao excluir avaliador: " + e.getMessage());
-        }
-    }
-
-    // --- Métodos de Gerenciamento de Avaliações ---
-    private void gerenciarAvaliacoes() {
-        // ... (código existente para gerenciar avaliações)
-        int subOpcao;
+    private void menuFuncionarioLogado() {
+        int opt;
         do {
-            System.out.println(CYAN + "\n--- GERENCIAR AVALIAÇÕES ---" + RESET);
-            System.out.println("1. Criar Avaliação");
-            System.out.println("2. Listar Avaliações");
-            System.out.println("3. Buscar Avaliação por ID");
-            System.out.println("4. Atualizar Avaliação");
-            System.out.println("5. Excluir Avaliação");
-            System.out.println("6. Listar Avaliações por Avaliado");
-            System.out.println("7. Listar Avaliações por Avaliador");
-            System.out.println("0. Voltar");
-            System.out.print(YELLOW + "Escolha uma opção: " + RESET);
-            subOpcao = lerInteiro();
-
-            switch (subOpcao) {
+            System.out.println(CYAN + "\n--- MENU DO FUNCIONÁRIO LOGADO (" + loggedInEvaluator.getName() + ") ---" + RESET);
+            System.out.println("1. Avaliar um Gerente");
+            System.out.println("2. Ver Detalhes de Avaliação");
+            System.out.println("0. Fazer Logout");
+            System.out.print(YELLOW + "Escolha: " + RESET);
+            opt = lerInteiro();
+            switch (opt) {
                 case 1:
-                    criarAvaliacao();
+                    avaliarGerente();
                     break;
                 case 2:
-                    listarAvaliacoes();
-                    break;
-                case 3:
-                    buscarAvaliacaoPorId();
-                    break;
-                case 4:
-                    atualizarAvaliacao();
-                    break;
-                case 5:
-                    excluirAvaliacao();
-                    break;
-                case 6:
-                    listarAvaliacoesPorAvaliado();
-                    break;
-                case 7:
-                    listarAvaliacoesPorAvaliador();
+                    verDetalhesAvaliacao();
                     break;
                 case 0:
-                    System.out.println(GREEN + "Voltando..." + RESET);
+                    System.out.println(GREEN + "Logout realizado. Até mais!" + RESET);
+                    this.loggedInEvaluator = null;
                     break;
                 default:
                     exibirErro("Opção inválida.");
             }
-        } while (subOpcao != 0);
+        } while (opt != 0 && this.loggedInEvaluator != null);
     }
 
-    private void criarAvaliacao() {
-        System.out.println(CYAN + "\n--- CRIAR AVALIAÇÃO ---" + RESET);
-        System.out.print("Título: ");
-        String title = scanner.nextLine();
-        System.out.print("Descrição: ");
-        String description = scanner.nextLine();
-
-        LocalDateTime startDate = null;
-        while (startDate == null) {
-            System.out.print("Data de Início (AAAA-MM-DD HH:MM): ");
-            startDate = parseDateTime(scanner.nextLine());
+    private void avaliarGerente() {
+        if (loggedInEvaluator == null) {
+            exibirErro("Você precisa estar identificado para avaliar um gerente.");
+            return;
         }
 
-        LocalDateTime endDate = null;
-        while (endDate == null) {
-            System.out.print("Data de Fim (AAAA-MM-DD HH:MM): ");
-            endDate = parseDateTime(scanner.nextLine());
-        }
+        System.out.println(CYAN + "\n--- AVALIAR GERENTE ---" + RESET);
 
+        System.out.println("\n--- GERENTE A SER AVALIADO ---");
         listarAvaliados();
-        System.out.print("ID do Avaliado: ");
+        System.out.print("ID do Gerente a ser avaliado: ");
         Long evaluatedId = lerLongId();
-
-        listarAvaliadores();
-        System.out.print("ID do Avaliador: ");
-        Long evaluatorId = lerLongId();
-
-        ManagerType managerType = null;
-        while (managerType == null) {
-            System.out.println("Selecione o Tipo de Gestor:");
-            for (ManagerType type : ManagerType.values()) {
-                System.out.println(type.ordinal() + 1 + ". " + type.getDisplayValue());
-            }
-            System.out.print("Opção: ");
-            int managerTypeOption = lerInteiro();
-            try {
-                managerType = ManagerType.values()[managerTypeOption - 1];
-            } catch (ArrayIndexOutOfBoundsException e) {
-                exibirErro("Opção inválida. Por favor, escolha um número da lista.");
-            }
-        }
-
 
         try {
             Evaluated evaluated = evaluatedService.getEvaluatedById(evaluatedId)
-                    .orElseThrow(() -> new ResourceNotFoundException("Avaliado não encontrado com ID: " + evaluatedId));
-            Evaluator evaluator = evaluatorService.getEvaluatorById(evaluatorId)
-                    .orElseThrow(() -> new ResourceNotFoundException("Avaliador não encontrado com ID: " + evaluatorId));
+                    .orElseThrow(() -> new ResourceNotFoundException("Gerente (Avaliado) não encontrado com ID: " + evaluatedId));
+
+            String title = "Avaliação de Gerente por " + loggedInEvaluator.getName() + " em " + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"));
+            String description = "Avaliação de habilidades do gerente " + evaluated.getName() + " realizada por " + loggedInEvaluator.getName() + ".";
+            LocalDateTime now = LocalDateTime.now();
+
 
             Evaluation newEvaluation = Evaluation.builder()
                     .title(title)
                     .description(description)
-                    .startDate(startDate)
-                    .endDate(endDate)
+                    .startDate(now)
+                    .endDate(now)
                     .evaluated(evaluated)
-                    .evaluator(evaluator)
-                    .managerType(managerType) // Atribui o tipo de gestor
+                    .evaluator(loggedInEvaluator)
                     .build();
 
-            // Adicionar características e ratings
-            System.out.print("Deseja adicionar características agora? (s/n): ");
-            String addChars = scanner.nextLine();
-            if (addChars.equalsIgnoreCase("s")) {
-                List<Characteristic> characteristics = new ArrayList<>();
-                String addMoreChars;
-                do {
-                    System.out.print("Nome da Característica: ");
-                    String charName = scanner.nextLine();
-                    System.out.print("Descrição da Característica: ");
-                    String charDescription = scanner.nextLine();
+            Set<Characteristic> characteristics = new HashSet<>();
+            Map<String, Double> categoryScores = new HashMap<>();
+            Map<String, Integer> categoryCounts = new HashMap<>();
 
-                    String skillCategory = null;
-                    while (skillCategory == null || skillCategory.trim().isEmpty()) {
-                        System.out.print("Categoria da Habilidade (Administrativa, Técnica, Pessoal, Outra): ");
-                        skillCategory = scanner.nextLine();
-                        if (skillCategory.trim().isEmpty()) {
-                            exibirErro("A categoria da habilidade não pode ser vazia.");
-                        }
-                    }
+            System.out.println(CYAN + "\n--- AVALIANDO CARACTERÍSTICAS ---" + RESET);
 
-                    Characteristic characteristic = Characteristic.builder()
-                            .name(charName)
-                            .description(charDescription)
-                            .skillCategory(skillCategory) // Define a categoria da habilidade
-                            .evaluation(newEvaluation) // Associa a característica à avaliação
-                            .build();
+            int totalCharacteristics = predefinedSkillIndicators.size();
+            int evaluatedCount = 0;
 
-                    List<Rating> ratings = new ArrayList<>();
-                    String addMoreRatings;
-                    do {
-                        System.out.print("Pontuação (1-5): ");
-                        Integer score = lerInteiro();
-                        System.out.print("Comentário para a nota: ");
-                        String comment = scanner.nextLine();
+            for (int i = 0; i < totalCharacteristics; i++) {
+                SkillIndicator indicator = predefinedSkillIndicators.get(i);
+                System.out.println(PURPLE + "\n--- Característica " + (i + 1) + " de " + totalCharacteristics + ": " + indicator.name + " ---" + RESET);
+                System.out.println(BLUE + "Descrição: " + indicator.description + RESET);
+                System.out.println(BLUE + "Categoria: " + indicator.skillCategory + RESET);
 
-                        Rating rating = Rating.builder()
-                                .score(score)
-                                .comment(comment)
-                                .evaluator(evaluator) // O avaliador da nota é o mesmo da avaliação
-                                .characteristic(characteristic) // Associa a nota à característica
-                                .evaluation(newEvaluation) // Associa a nota à avaliação
-                                .build();
-                        ratings.add(rating);
+                Characteristic characteristic = Characteristic.builder()
+                        .name(indicator.name)
+                        .description(indicator.description)
+                        .skillCategory(indicator.skillCategory)
+                        .evaluation(newEvaluation)
+                        .build();
 
-                        System.out.print("Adicionar mais notas para esta característica? (s/n): ");
-                        addMoreRatings = scanner.nextLine();
-                    } while (addMoreRatings.equalsIgnoreCase("s"));
-                    characteristic.setRatings(ratings.stream().collect(Collectors.toSet())); // Converte para Set
-
-                    characteristics.add(characteristic);
-
-                    System.out.print("Adicionar mais características para esta avaliação? (s/n): ");
-                    addMoreChars = scanner.nextLine();
-                } while (addMoreChars.equalsIgnoreCase("s"));
-                newEvaluation.setCharacteristics(characteristics.stream().collect(Collectors.toSet())); // Converte para Set
-            }
-
-
-            Evaluation savedEvaluation = evaluationService.createEvaluation(newEvaluation);
-            System.out.println(GREEN + "Avaliação criada com sucesso! ID: " + savedEvaluation.getId() + RESET);
-
-        } catch (ResourceNotFoundException e) {
-            exibirErro(e.getMessage());
-        } catch (Exception e) {
-            exibirErro("Erro ao criar avaliação: " + e.getMessage());
-        }
-    }
-
-
-    private void listarAvaliacoes() {
-        List<Evaluation> evaluations = evaluationService.getAllEvaluations();
-        exibirLista("LISTA DE AVALIAÇÕES", evaluations);
-    }
-
-    private void buscarAvaliacaoPorId() {
-        System.out.print("Digite o ID da Avaliação: ");
-        Long id = lerLongId();
-        Optional<EvaluationDetailDto> detailDto = evaluationService.getEvaluationDetail(id);
-        if (detailDto.isPresent()) {
-            EvaluationDetailDto evaluation = detailDto.get();
-            System.out.println(CYAN + "\n--- DETALHES DA AVALIAÇÃO ---" + RESET);
-            System.out.println("ID: " + evaluation.getId());
-            System.out.println("Título: " + evaluation.getTitle());
-            System.out.println("Descrição: " + evaluation.getDescription());
-            System.out.println("Data de Início: " + evaluation.getStartDate());
-            System.out.println("Data de Fim: " + evaluation.getEndDate());
-            System.out.println("Avaliado: " + evaluation.getEvaluatedName());
-            System.out.println("Avaliador: " + evaluation.getEvaluatorName());
-            System.out.println("Tipo de Gestor: " + (evaluation.getManagerType() != null ? evaluation.getManagerType().getDisplayValue() : "N/A")); // Exibe o displayValue
-
-            System.out.println("\nCaracterísticas:");
-            if (evaluation.getCharacteristics().isEmpty()) {
-                System.out.println(YELLOW + "  Nenhuma característica associada." + RESET);
-            } else {
-                for (EvaluationDetailDto.CharacteristicDto charDto : evaluation.getCharacteristics()) {
-                    System.out.println(BLUE + "  - Característica ID: " + charDto.getId() + RESET);
-                    System.out.println("    Nome: " + charDto.getName());
-                    System.out.println("    Descrição: " + charDto.getDescription());
-                    // Adicionar skillCategory aqui se você tiver no DTO
-                    // System.out.println("    Categoria: " + charDto.getSkillCategory());
-
-                    System.out.println("    Notas:");
-                    if (charDto.getRatings().isEmpty()) {
-                        System.out.println(YELLOW + "      Nenhuma nota associada." + RESET);
-                    } else {
-                        for (EvaluationDetailDto.RatingDto ratingDto : charDto.getRatings()) {
-                            System.out.println(PURPLE + "      - Nota ID: " + ratingDto.getId() + RESET);
-                            System.out.println("        Pontuação: " + ratingDto.getScore());
-                            System.out.println("        Comentário: " + ratingDto.getComment());
-                            System.out.println("        Avaliador da Nota: " + ratingDto.getEvaluatorName());
-                        }
-                    }
+                Set<Rating> ratings = new HashSet<>();
+                System.out.print("Pontuação (1-5): ");
+                Integer score = lerInteiro();
+                if (score < 1 || score > 5) {
+                    exibirErro("A pontuação deve ser entre 1 e 5. Esta característica não será salva na avaliação.");
+                    continue;
                 }
-            }
-        } else {
-            exibirErro("Avaliação não encontrada.");
-        }
-    }
 
+                Rating rating = Rating.builder()
+                        .score(score)
+                        .comment("")
+                        .evaluator(loggedInEvaluator)
+                        .characteristic(characteristic)
+                        .evaluation(newEvaluation)
+                        .build();
+                ratings.add(rating);
 
-    private void atualizarAvaliacao() {
-        System.out.print("Digite o ID da Avaliação a ser atualizada: ");
-        Long id = lerLongId();
-        Optional<Evaluation> existingEvaluationOpt = evaluationService.getEvaluationById(id);
+                characteristic.setRatings(ratings);
+                characteristics.add(characteristic);
+                evaluatedCount++;
 
-        if (existingEvaluationOpt.isPresent()) {
-            Evaluation existingEvaluation = existingEvaluationOpt.get();
-            System.out.println(CYAN + "\n--- ATUALIZAR AVALIAÇÃO (ID: " + id + ") ---" + RESET);
+                categoryScores.merge(indicator.skillCategory, (double) score, Double::sum);
+                categoryCounts.merge(indicator.skillCategory, 1, Integer::sum);
 
-            System.out.print("Novo Título (" + existingEvaluation.getTitle() + "): ");
-            String newTitle = scanner.nextLine();
-            if (!newTitle.isEmpty()) {
-                existingEvaluation.setTitle(newTitle);
             }
 
-            System.out.print("Nova Descrição (" + existingEvaluation.getDescription() + "): ");
-            String newDescription = scanner.nextLine();
-            if (!newDescription.isEmpty()) {
-                existingEvaluation.setDescription(newDescription);
+            if (characteristics.isEmpty()) {
+                System.out.println(YELLOW + "Nenhuma característica foi avaliada nesta sessão. Avaliação não será criada." + RESET);
+                return;
             }
 
-            System.out.print("Nova Data de Início (atual: " + existingEvaluation.getStartDate() + ", AAAA-MM-DD HH:MM, ENTER para manter): ");
-            String startDateStr = scanner.nextLine();
-            if (!startDateStr.isEmpty()) {
-                LocalDateTime newStartDate = parseDateTime(startDateStr);
-                if (newStartDate != null) {
-                    existingEvaluation.setStartDate(newStartDate);
-                } else {
-                    exibirErro("Formato de data/hora inválido. Mantendo data de início atual.");
-                }
-            }
+            newEvaluation.setCharacteristics(characteristics);
 
-            System.out.print("Nova Data de Fim (atual: " + existingEvaluation.getEndDate() + ", AAAA-MM-DD HH:MM, ENTER para manter): ");
-            String endDateStr = scanner.nextLine();
-            if (!endDateStr.isEmpty()) {
-                LocalDateTime newEndDate = parseDateTime(endDateStr);
-                if (newEndDate != null) {
-                    existingEvaluation.setEndDate(newEndDate);
-                } else {
-                    exibirErro("Formato de data/hora inválido. Mantendo data de fim atual.");
-                }
-            }
+            ManagerType determinedManagerType = determineManagerType(categoryScores, categoryCounts);
+            newEvaluation.setManagerType(determinedManagerType);
+            System.out.println(GREEN + "\n--- Tipo de Gestor Determinado: " + determinedManagerType.getDisplayValue() + " ---" + RESET);
 
-            // Atualizar o tipo de gestor
-            System.out.println("Tipo de Gestor Atual: " + (existingEvaluation.getManagerType() != null ? existingEvaluation.getManagerType().getDisplayValue() : "N/A"));
-            System.out.println("Deseja alterar o Tipo de Gestor? (s/n): ");
-            String changeManagerType = scanner.nextLine();
-            if (changeManagerType.equalsIgnoreCase("s")) {
-                ManagerType newManagerType = null;
-                while (newManagerType == null) {
-                    System.out.println("Selecione o Novo Tipo de Gestor:");
-                    for (ManagerType type : ManagerType.values()) {
-                        System.out.println(type.ordinal() + 1 + ". " + type.getDisplayValue());
-                    }
-                    System.out.print("Opção: ");
-                    int managerTypeOption = lerInteiro();
-                    try {
-                        newManagerType = ManagerType.values()[managerTypeOption - 1];
-                    } catch (ArrayIndexOutOfBoundsException e) {
-                        exibirErro("Opção inválida. Por favor, escolha um número da lista.");
-                    }
-                }
-                existingEvaluation.setManagerType(newManagerType);
-            }
+            exibirFeedbackGerente(determinedManagerType);
 
+            evaluationService.createEvaluation(newEvaluation);
+            System.out.println(GREEN + "Avaliação do gerente criada com sucesso!" + RESET);
 
-            listarAvaliados();
-            System.out.print("Novo ID do Avaliado (atual: " + (existingEvaluation.getEvaluated() != null ? existingEvaluation.getEvaluated().getId() : "N/A") + ", ENTER para manter): ");
-            String evaluatedIdStr = scanner.nextLine();
-            if (!evaluatedIdStr.isEmpty()) {
-                try {
-                    Long newEvaluatedId = Long.parseLong(evaluatedIdStr);
-                    Evaluated newEvaluated = evaluatedService.getEvaluatedById(newEvaluatedId)
-                            .orElseThrow(() -> new ResourceNotFoundException("Novo Avaliado não encontrado com ID: " + newEvaluatedId));
-                    existingEvaluation.setEvaluated(newEvaluated);
-                } catch (NumberFormatException e) {
-                    exibirErro("ID do Avaliado inválido. Mantendo o avaliado atual.");
-                } catch (ResourceNotFoundException e) {
-                    exibirErro(e.getMessage() + ". Mantendo o avaliado atual.");
-                }
-            }
-
-            listarAvaliadores();
-            System.out.print("Novo ID do Avaliador (atual: " + (existingEvaluation.getEvaluator() != null ? existingEvaluation.getEvaluator().getId() : "N/A") + ", ENTER para manter): ");
-            String evaluatorIdStr = scanner.nextLine();
-            if (!evaluatorIdStr.isEmpty()) {
-                try {
-                    Long newEvaluatorId = Long.parseLong(evaluatorIdStr);
-                    Evaluator newEvaluator = evaluatorService.getEvaluatorById(newEvaluatorId)
-                            .orElseThrow(() -> new ResourceNotFoundException("Novo Avaliador não encontrado com ID: " + newEvaluatorId));
-                    existingEvaluation.setEvaluator(newEvaluator);
-                } catch (NumberFormatException e) {
-                    exibirErro("ID do Avaliador inválido. Mantendo o avaliador atual.");
-                } catch (ResourceNotFoundException e) {
-                    exibirErro(e.getMessage() + ". Mantendo o avaliador atual.");
-                }
-            }
-
-            Optional<Evaluation> updatedEvaluation = evaluationService.updateEvaluation(id, existingEvaluation);
-            if (updatedEvaluation.isPresent()) {
-                System.out.println(GREEN + "Avaliação atualizada com sucesso!" + RESET);
-            } else {
-                exibirErro("Falha ao atualizar avaliação.");
-            }
-        } else {
-            exibirErro("Avaliação não encontrada com ID: " + id);
-        }
-    }
-
-
-    private void excluirAvaliacao() {
-        System.out.print("Digite o ID da Avaliação a ser excluída: ");
-        Long id = lerLongId();
-        try {
-            boolean deleted = evaluationService.deleteEvaluation(id);
-            if (deleted) {
-                System.out.println(GREEN + "Avaliação excluída com sucesso!" + RESET);
-            } else {
-                exibirErro("Avaliação não encontrada.");
-            }
-        } catch (ResourceNotFoundException e) {
-            exibirErro(e.getMessage());
-        } catch (Exception e) {
-            exibirErro("Erro ao excluir avaliação: " + e.getMessage());
-        }
-    }
-
-    private void listarAvaliacoesPorAvaliado() {
-        listarAvaliados();
-        System.out.print("Digite o ID do Avaliado para listar suas avaliações: ");
-        Long evaluatedId = lerLongId();
-        List<Evaluation> evaluations = evaluationService.getEvaluationsByEvaluatedId(evaluatedId);
-        if (evaluations.isEmpty()) {
-            System.out.println(YELLOW + "Nenhuma avaliação encontrada para o Avaliado com ID: " + evaluatedId + RESET);
-        } else {
-            exibirLista("AVALIAÇÕES DO AVALIADO (ID: " + evaluatedId + ")", evaluations);
-        }
-    }
-
-    private void listarAvaliacoesPorAvaliador() {
-        listarAvaliadores();
-        System.out.print("Digite o ID do Avaliador para listar as avaliações que ele criou: ");
-        Long evaluatorId = lerLongId();
-        List<Evaluation> evaluations = evaluationService.getEvaluationsByEvaluatorId(evaluatorId);
-        if (evaluations.isEmpty()) {
-            System.out.println(YELLOW + "Nenhuma avaliação encontrada para o Avaliador com ID: " + evaluatorId + RESET);
-        } else {
-            exibirLista("AVALIAÇÕES CRIADAS PELO AVALIADOR (ID: " + evaluatorId + ")", evaluations);
-        }
-    }
-
-    // --- Métodos de Gerenciamento de Características ---
-    private void gerenciarCaracteristicas() {
-        // ... (código existente para gerenciar características)
-        int subOpcao;
-        do {
-            System.out.println(CYAN + "\n--- GERENCIAR CARACTERÍSTICAS ---" + RESET);
-            System.out.println("1. Criar Característica (associada a uma Avaliação)");
-            System.out.println("2. Listar Características");
-            System.out.println("3. Buscar Característica por ID");
-            System.out.println("4. Atualizar Característica");
-            System.out.println("5. Excluir Característica");
-            System.out.println("6. Listar Características por Avaliação");
-            System.out.println("0. Voltar");
-            System.out.print(YELLOW + "Escolha uma opção: " + RESET);
-            subOpcao = lerInteiro();
-
-            switch (subOpcao) {
-                case 1:
-                    criarCaracteristica();
-                    break;
-                case 2:
-                    listarCaracteristicas();
-                    break;
-                case 3:
-                    buscarCaracteristicaPorId();
-                    break;
-                case 4:
-                    atualizarCaracteristica();
-                    break;
-                case 5:
-                    excluirCaracteristica();
-                    break;
-                case 6:
-                    listarCaracteristicasPorAvaliacao();
-                    break;
-                case 0:
-                    System.out.println(GREEN + "Voltando..." + RESET);
-                    break;
-                default:
-                    exibirErro("Opção inválida.");
-            }
-        } while (subOpcao != 0);
-    }
-
-    private void criarCaracteristica() {
-        System.out.println(CYAN + "\n--- CRIAR CARACTERÍSTICA ---" + RESET);
-        listarAvaliacoes();
-        System.out.print("ID da Avaliação à qual esta característica pertence: ");
-        Long evaluationId = lerLongId();
-
-        try {
-            Evaluation evaluation = evaluationService.getEvaluationById(evaluationId)
-                    .orElseThrow(() -> new ResourceNotFoundException("Avaliação não encontrada com ID: " + evaluationId));
-
-            System.out.print("Nome da Característica: ");
-            String name = scanner.nextLine();
-            System.out.print("Descrição da Característica: ");
-            String description = scanner.nextLine();
-            System.out.print("Categoria da Habilidade (Administrativa, Técnica, Pessoal, Outra): "); // Solicita a categoria
-            String skillCategory = scanner.nextLine();
-
-            Characteristic newCharacteristic = Characteristic.builder()
-                    .name(name)
-                    .description(description)
-                    .skillCategory(skillCategory) // Atribui a categoria
-                    .evaluation(evaluation)
-                    .build();
-
-            Characteristic savedCharacteristic = characteristicService.createCharacteristic(newCharacteristic);
-            System.out.println(GREEN + "Característica criada com sucesso! ID: " + savedCharacteristic.getId() + RESET);
-        } catch (ResourceNotFoundException e) {
-            exibirErro(e.getMessage());
-        } catch (Exception e) {
-            exibirErro("Erro ao criar característica: " + e.getMessage());
-        }
-    }
-
-    private void listarCaracteristicas() {
-        List<Characteristic> characteristics = characteristicService.getAllCharacteristics();
-        exibirLista("LISTA DE CARACTERÍSTICAS", characteristics);
-    }
-
-    private void buscarCaracteristicaPorId() {
-        System.out.print("Digite o ID da Característica: ");
-        Long id = lerLongId();
-        Optional<Characteristic> characteristic = characteristicService.getCharacteristicById(id);
-        if (characteristic.isPresent()) {
-            System.out.println(CYAN + "\n--- DETALHES DA CARACTERÍSTICA ---" + RESET);
-            System.out.println("ID: " + characteristic.get().getId());
-            System.out.println("Nome: " + characteristic.get().getName());
-            System.out.println("Descrição: " + characteristic.get().getDescription());
-            System.out.println("Categoria da Habilidade: " + characteristic.get().getSkillCategory()); // Exibe a categoria
-            System.out.println("Avaliação Associada ID: " + (characteristic.get().getEvaluation() != null ? characteristic.get().getEvaluation().getId() : "N/A"));
-            System.out.println("Criado em: " + characteristic.get().getCreatedAt());
-            System.out.println("Última Atualização: " + (characteristic.get().getUpdatedAt() != null ? characteristic.get().getUpdatedAt() : "N/A"));
-        } else {
-            exibirErro("Característica não encontrada.");
-        }
-    }
-
-    private void atualizarCaracteristica() {
-        System.out.print("Digite o ID da Característica a ser atualizada: ");
-        Long id = lerLongId();
-        Optional<Characteristic> existingCharacteristicOpt = characteristicService.getCharacteristicById(id);
-
-        if (existingCharacteristicOpt.isPresent()) {
-            Characteristic existingCharacteristic = existingCharacteristicOpt.get();
-            System.out.println(CYAN + "\n--- ATUALIZAR CARACTERÍSTICA (ID: " + id + ") ---" + RESET);
-
-            System.out.print("Novo Nome (" + existingCharacteristic.getName() + "): ");
-            String newName = scanner.nextLine();
-            if (!newName.isEmpty()) {
-                existingCharacteristic.setName(newName);
-            }
-
-            System.out.print("Nova Descrição (" + existingCharacteristic.getDescription() + "): ");
-            String newDescription = scanner.nextLine();
-            if (!newDescription.isEmpty()) {
-                existingCharacteristic.setDescription(newDescription);
-            }
-
-            System.out.print("Nova Categoria da Habilidade (atual: " + existingCharacteristic.getSkillCategory() + ", ENTER para manter): ");
-            String newSkillCategory = scanner.nextLine();
-            if (!newSkillCategory.isEmpty()) {
-                existingCharacteristic.setSkillCategory(newSkillCategory);
-            }
-
-            listarAvaliacoes();
-            System.out.print("Novo ID da Avaliação (atual: " + (existingCharacteristic.getEvaluation() != null ? existingCharacteristic.getEvaluation().getId() : "N/A") + ", ENTER para manter): ");
-            String evaluationIdStr = scanner.nextLine();
-            if (!evaluationIdStr.isEmpty()) {
-                try {
-                    Long newEvaluationId = Long.parseLong(evaluationIdStr);
-                    Evaluation newEvaluation = evaluationService.getEvaluationById(newEvaluationId)
-                            .orElseThrow(() -> new ResourceNotFoundException("Nova Avaliação não encontrada com ID: " + newEvaluationId));
-                    existingCharacteristic.setEvaluation(newEvaluation);
-                } catch (NumberFormatException e) {
-                    exibirErro("ID da Avaliação inválido. Mantendo a avaliação atual.");
-                } catch (ResourceNotFoundException e) {
-                    exibirErro(e.getMessage() + ". Mantendo a avaliação atual.");
-                }
-            }
-
-            Optional<Characteristic> updatedCharacteristic = characteristicService.updateCharacteristic(id, existingCharacteristic);
-            if (updatedCharacteristic.isPresent()) {
-                System.out.println(GREEN + "Característica atualizada com sucesso!" + RESET);
-            } else {
-                exibirErro("Falha ao atualizar característica.");
-            }
-        } else {
-            exibirErro("Característica não encontrada com ID: " + id);
-        }
-    }
-
-
-    private void excluirCaracteristica() {
-        System.out.print("Digite o ID da Característica a ser excluída: ");
-        Long id = lerLongId();
-        try {
-            boolean deleted = characteristicService.deleteCharacteristic(id);
-            if (deleted) {
-                System.out.println(GREEN + "Característica excluída com sucesso!" + RESET);
-            } else {
-                exibirErro("Característica não encontrada.");
-            }
-        } catch (ResourceNotFoundException e) {
-            exibirErro(e.getMessage());
-        } catch (Exception e) {
-            exibirErro("Erro ao excluir característica: " + e.getMessage());
-        }
-    }
-
-    private void listarCaracteristicasPorAvaliacao() {
-        listarAvaliacoes();
-        System.out.print("Digite o ID da Avaliação para listar suas características: ");
-        Long evaluationId = lerLongId();
-        List<Characteristic> characteristics = characteristicService.getCharacteristicsByEvaluationId(evaluationId);
-        if (characteristics.isEmpty()) {
-            System.out.println(YELLOW + "Nenhuma característica encontrada para a Avaliação com ID: " + evaluationId + RESET);
-        } else {
-            exibirLista("CARACTERÍSTICAS DA AVALIAÇÃO (ID: " + evaluationId + ")", characteristics);
-        }
-    }
-
-    // --- Métodos de Gerenciamento de Notas (Ratings) ---
-    private void gerenciarNotas() {
-        // ... (código existente para gerenciar notas)
-        int subOpcao;
-        do {
-            System.out.println(CYAN + "\n--- GERENCIAR NOTAS (RATINGS) ---" + RESET);
-            System.out.println("1. Criar Nota");
-            System.out.println("2. Listar Notas");
-            System.out.println("3. Buscar Nota por ID");
-            System.out.println("4. Atualizar Nota");
-            System.out.println("5. Excluir Nota");
-            System.out.println("6. Listar Notas por Característica");
-            System.out.println("7. Listar Notas por Avaliador");
-            System.out.println("8. Listar Notas por Avaliação");
-            System.out.println("0. Voltar");
-            System.out.print(YELLOW + "Escolha uma opção: " + RESET);
-            subOpcao = lerInteiro();
-
-            switch (subOpcao) {
-                case 1:
-                    criarNota();
-                    break;
-                case 2:
-                    listarNotas();
-                    break;
-                case 3:
-                    buscarNotaPorId();
-                    break;
-                case 4:
-                    atualizarNota();
-                    break;
-                case 5:
-                    excluirNota();
-                    break;
-                case 6:
-                    listarNotasPorCaracteristica();
-                    break;
-                case 7:
-                    listarNotasPorAvaliador();
-                    break;
-                case 8:
-                    listarNotasPorAvaliacao();
-                    break;
-                case 0:
-                    System.out.println(GREEN + "Voltando..." + RESET);
-                    break;
-                default:
-                    exibirErro("Opção inválida.");
-            }
-        } while (subOpcao != 0);
-    }
-
-    private void criarNota() {
-        System.out.println(CYAN + "\n--- CRIAR NOTA ---" + RESET);
-        listarCaracteristicas();
-        System.out.print("ID da Característica à qual esta nota pertence: ");
-        Long characteristicId = lerLongId();
-
-        listarAvaliadores();
-        System.out.print("ID do Avaliador que está dando esta nota: ");
-        Long evaluatorId = lerLongId();
-
-        listarAvaliacoes(); // Necessário para associar a nota à avaliação
-        System.out.print("ID da Avaliação principal à qual esta nota está vinculada: ");
-        Long evaluationId = lerLongId();
-
-        try {
-            Characteristic characteristic = characteristicService.getCharacteristicById(characteristicId)
-                    .orElseThrow(() -> new ResourceNotFoundException("Característica não encontrada com ID: " + characteristicId));
-            Evaluator evaluator = evaluatorService.getEvaluatorById(evaluatorId)
-                    .orElseThrow(() -> new ResourceNotFoundException("Avaliador não encontrado com ID: " + evaluatorId));
-            Evaluation evaluation = evaluationService.getEvaluationById(evaluationId)
-                    .orElseThrow(() -> new ResourceNotFoundException("Avaliação não encontrada com ID: " + evaluationId));
-
-
-            System.out.print("Pontuação (1-5): ");
-            Integer score = lerInteiro();
-            if (score < 1 || score > 5) {
-                throw new IllegalArgumentException("A pontuação deve ser entre 1 e 5.");
-            }
-            System.out.print("Comentário para a nota: ");
-            String comment = scanner.nextLine();
-
-            Rating newRating = Rating.builder()
-                    .score(score)
-                    .comment(comment)
-                    .characteristic(characteristic)
-                    .evaluator(evaluator)
-                    .evaluation(evaluation) // Associa a nota à avaliação principal
-                    .build();
-
-            Rating savedRating = ratingService.createRating(newRating);
-            System.out.println(GREEN + "Nota criada com sucesso! ID: " + savedRating.getId() + RESET);
         } catch (ResourceNotFoundException e) {
             exibirErro(e.getMessage());
         } catch (IllegalArgumentException e) {
             exibirErro("Erro de validação: " + e.getMessage());
         } catch (Exception e) {
-            exibirErro("Erro ao criar nota: " + e.getMessage());
+            exibirErro("Erro ao criar avaliação do gerente: " + e.getMessage());
+            e.printStackTrace();
         }
     }
 
-    private void listarNotas() {
-        List<Rating> ratings = ratingService.getAllRatings();
-        exibirLista("LISTA DE NOTAS", ratings);
-    }
+    private void verDetalhesAvaliacao() {
+        System.out.println(CYAN + "\n--- VER DETALHES DE AVALIAÇÃO ---" + RESET);
 
-    private void buscarNotaPorId() {
-        System.out.print("Digite o ID da Nota: ");
-        Long id = lerLongId();
-        Optional<Rating> rating = ratingService.getRatingById(id);
-        if (rating.isPresent()) {
-            System.out.println(CYAN + "\n--- DETALHES DA NOTA ---" + RESET);
-            System.out.println("ID: " + rating.get().getId());
-            System.out.println("Pontuação: " + rating.get().getScore());
-            System.out.println("Comentário: " + rating.get().getComment());
-            System.out.println("Característica Associada ID: " + (rating.get().getCharacteristic() != null ? rating.get().getCharacteristic().getId() : "N/A"));
-            System.out.println("Avaliador da Nota ID: " + (rating.get().getEvaluator() != null ? rating.get().getEvaluator().getId() : "N/A"));
-            System.out.println("Avaliação Principal ID: " + (rating.get().getEvaluation() != null ? rating.get().getEvaluation().getId() : "N/A"));
-            System.out.println("Criado em: " + rating.get().getCreatedAt());
-            System.out.println("Última Atualização: " + (rating.get().getUpdatedAt() != null ? rating.get().getUpdatedAt() : "N/A"));
+        System.out.println(CYAN + "\n--- AVALIAÇÕES DISPONÍVEIS ---" + RESET);
+        List<Evaluation> allEvaluations = evaluationService.getAllEvaluations();
+        if (allEvaluations.isEmpty()) {
+            System.out.println(YELLOW + "Nenhuma avaliação encontrada no sistema." + RESET);
+            return;
         } else {
-            exibirErro("Nota não encontrada.");
+            System.out.println(BLUE + "ID | Título                       | Avaliado            | Avaliador           | Data" + RESET);
+            System.out.println(BLUE + "---|------------------------------|---------------------|---------------------|--------------------" + RESET);
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+            for (Evaluation eval : allEvaluations) {
+                String titleFormatted = eval.getTitle().length() > 25 ? eval.getTitle().substring(0, 22) + "..." : String.format("%-25s", eval.getTitle());
+                String evaluatedName = eval.getEvaluated() != null ? eval.getEvaluated().getName() : "N/A";
+                String evaluatorName = eval.getEvaluator() != null ? eval.getEvaluator().getName() : "N/A";
+                String dateFormatted = eval.getCreatedAt() != null ? eval.getCreatedAt().format(formatter) : "N/A";
+
+                System.out.printf("%-2d | %s | %-19s | %-19s | %s\n",
+                        eval.getId(), titleFormatted,
+                        evaluatedName.length() > 19 ? evaluatedName.substring(0, 16) + "..." : String.format("%-19s", evaluatedName),
+                        evaluatorName.length() > 19 ? evaluatorName.substring(0, 16) + "..." : String.format("%-19s", evaluatorName),
+                        dateFormatted);
+            }
+            System.out.println(BLUE + "--------------------------------------------------------------------------------------" + RESET);
         }
-    }
 
-    private void atualizarNota() {
-        System.out.print("Digite o ID da Nota a ser atualizada: ");
-        Long id = lerLongId();
-        Optional<Rating> existingRatingOpt = ratingService.getRatingById(id);
-
-        if (existingRatingOpt.isPresent()) {
-            Rating existingRating = existingRatingOpt.get();
-            System.out.println(CYAN + "\n--- ATUALIZAR NOTA (ID: " + id + ") ---" + RESET);
-
-            System.out.print("Nova Pontuação (atual: " + existingRating.getScore() + ", 1-5, ENTER para manter): ");
-            String newScoreStr = scanner.nextLine();
-            if (!newScoreStr.isEmpty()) {
-                try {
-                    Integer newScore = Integer.parseInt(newScoreStr);
-                    if (newScore < 1 || newScore > 5) {
-                        exibirErro("A pontuação deve ser entre 1 e 5. Mantendo pontuação atual.");
-                    } else {
-                        existingRating.setScore(newScore);
-                    }
-                } catch (NumberFormatException e) {
-                    exibirErro("Pontuação inválida. Mantendo pontuação atual.");
-                }
-            }
-
-            System.out.print("Novo Comentário (atual: " + existingRating.getComment() + ", ENTER para manter): ");
-            String newComment = scanner.nextLine();
-            if (!newComment.isEmpty()) {
-                existingRating.setComment(newComment);
-            }
-
-            listarCaracteristicas();
-            System.out.print("Novo ID da Característica (atual: " + (existingRating.getCharacteristic() != null ? existingRating.getCharacteristic().getId() : "N/A") + ", ENTER para manter): ");
-            String characteristicIdStr = scanner.nextLine();
-            if (!characteristicIdStr.isEmpty()) {
-                try {
-                    Long newCharacteristicId = Long.parseLong(characteristicIdStr);
-                    Characteristic newCharacteristic = characteristicService.getCharacteristicById(newCharacteristicId)
-                            .orElseThrow(() -> new ResourceNotFoundException("Nova Característica não encontrada com ID: " + newCharacteristicId));
-                    existingRating.setCharacteristic(newCharacteristic);
-                } catch (NumberFormatException e) {
-                    exibirErro("ID da Característica inválido. Mantendo a característica atual.");
-                } catch (ResourceNotFoundException e) {
-                    exibirErro(e.getMessage() + ". Mantendo a característica atual.");
-                }
-            }
-
-            listarAvaliadores();
-            System.out.print("Novo ID do Avaliador (atual: " + (existingRating.getEvaluator() != null ? existingRating.getEvaluator().getId() : "N/A") + ", ENTER para manter): ");
-            String evaluatorIdStr = scanner.nextLine();
-            if (!evaluatorIdStr.isEmpty()) {
-                try {
-                    Long newEvaluatorId = Long.parseLong(evaluatorIdStr);
-                    Evaluator newEvaluator = evaluatorService.getEvaluatorById(newEvaluatorId)
-                            .orElseThrow(() -> new ResourceNotFoundException("Novo Avaliador não encontrado com ID: " + newEvaluatorId));
-                    existingRating.setEvaluator(newEvaluator);
-                } catch (NumberFormatException e) {
-                    exibirErro("ID do Avaliador inválido. Mantendo o avaliador atual.");
-                } catch (ResourceNotFoundException e) {
-                    exibirErro(e.getMessage() + ". Mantendo o avaliador atual.");
-                }
-            }
-
-            listarAvaliacoes();
-            System.out.print("Novo ID da Avaliação Principal (atual: " + (existingRating.getEvaluation() != null ? existingRating.getEvaluation().getId() : "N/A") + ", ENTER para manter): ");
-            String evaluationIdStr = scanner.nextLine();
-            if (!evaluationIdStr.isEmpty()) {
-                try {
-                    Long newEvaluationId = Long.parseLong(evaluationIdStr);
-                    Evaluation newEvaluation = evaluationService.getEvaluationById(newEvaluationId)
-                            .orElseThrow(() -> new ResourceNotFoundException("Nova Avaliação não encontrada com ID: " + newEvaluationId));
-                    existingRating.setEvaluation(newEvaluation);
-                } catch (NumberFormatException e) {
-                    exibirErro("ID da Avaliação inválido. Mantendo a avaliação principal atual.");
-                } catch (ResourceNotFoundException e) {
-                    exibirErro(e.getMessage() + ". Mantendo a avaliação principal atual.");
-                }
-            }
-
-            Optional<Rating> updatedRating = ratingService.updateRating(id, existingRating);
-            if (updatedRating.isPresent()) {
-                System.out.println(GREEN + "Nota atualizada com sucesso!" + RESET);
-            } else {
-                exibirErro("Falha ao atualizar nota.");
-            }
-        } else {
-            exibirErro("Nota não encontrada com ID: " + id);
-        }
-    }
-
-
-    private void excluirNota() {
-        System.out.print("Digite o ID da Nota a ser excluída: ");
-        Long id = lerLongId();
-        try {
-            boolean deleted = ratingService.deleteRating(id);
-            if (deleted) {
-                System.out.println(GREEN + "Nota excluída com sucesso!" + RESET);
-            } else {
-                exibirErro("Nota não encontrada.");
-            }
-        } catch (ResourceNotFoundException e) {
-            exibirErro(e.getMessage());
-        } catch (Exception e) {
-            exibirErro("Erro ao excluir nota: " + e.getMessage());
-        }
-    }
-
-    private void listarNotasPorCaracteristica() {
-        listarCaracteristicas();
-        System.out.print("Digite o ID da Característica para listar suas notas: ");
-        Long characteristicId = lerLongId();
-        List<Rating> ratings = ratingService.getRatingsByCharacteristicId(characteristicId);
-        if (ratings.isEmpty()) {
-            System.out.println(YELLOW + "Nenhuma nota encontrada para a Característica com ID: " + characteristicId + RESET);
-        } else {
-            exibirLista("NOTAS DA CARACTERÍSTICA (ID: " + characteristicId + ")", ratings);
-        }
-    }
-
-    private void listarNotasPorAvaliador() {
-        listarAvaliadores();
-        System.out.print("Digite o ID do Avaliador para listar as notas que ele deu: ");
-        Long evaluatorId = lerLongId();
-        List<Rating> ratings = ratingService.getRatingsByEvaluatorId(evaluatorId);
-        if (ratings.isEmpty()) {
-            System.out.println(YELLOW + "Nenhuma nota encontrada para o Avaliador com ID: " + evaluatorId + RESET);
-        } else {
-            exibirLista("NOTAS DADAS PELO AVALIADOR (ID: " + evaluatorId + ")", ratings);
-        }
-    }
-
-    private void listarNotasPorAvaliacao() {
-        listarAvaliacoes();
-        System.out.print("Digite o ID da Avaliação para listar todas as notas vinculadas a ela: ");
+        System.out.print("\nDigite o ID da Avaliação que deseja ver: ");
         Long evaluationId = lerLongId();
-        List<Rating> ratings = ratingService.getRatingsByEvaluationId(evaluationId);
-        if (ratings.isEmpty()) {
-            System.out.println(YELLOW + "Nenhuma nota encontrada para a Avaliação com ID: " + evaluationId + RESET);
-        } else {
-            exibirLista("NOTAS DA AVALIAÇÃO (ID: " + evaluationId + ")", ratings);
+
+        try {
+            Optional<Evaluation> evaluationOpt = evaluationService.getEvaluationById(evaluationId);
+            if (evaluationOpt.isPresent()) {
+                Evaluation evaluation = evaluationOpt.get();
+                System.out.println(PURPLE + "\n--- DETALHES DA AVALIAÇÃO ID: " + evaluation.getId() + " ---" + RESET);
+
+                System.out.println(BLUE + "Avaliação feita por: " + (evaluation.getEvaluator() != null ? evaluation.getEvaluator().getName() : "N/A") + RESET);
+                System.out.println(BLUE + "Realizada em: " + (evaluation.getCreatedAt() != null ? evaluation.getCreatedAt().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")) : "N/A") + RESET);
+
+                System.out.println(BLUE + "\nGerente Avaliado: " + (evaluation.getEvaluated() != null ? evaluation.getEvaluated().getName() : "N/A") + RESET);
+                System.out.println(BLUE + "Tipo de Gestor Determinado: " + (evaluation.getManagerType() != null ? evaluation.getManagerType().getDisplayValue() : "N/A") + RESET);
+
+                if (evaluation.getManagerType() != null) {
+                    exibirFeedbackGerente(evaluation.getManagerType());
+                } else {
+                    System.out.println(YELLOW + "Tipo de Gestor não definido para esta avaliação." + RESET);
+                }
+
+
+            } else {
+                exibirErro("Avaliação não encontrada com ID: " + evaluationId);
+            }
+        } catch (Exception e) {
+            exibirErro("Erro ao buscar detalhes da avaliação: " + e.getMessage());
+            e.printStackTrace();
         }
     }
 
+    private ManagerType determineManagerType(Map<String, Double> categoryScores, Map<String, Integer> categoryCounts) {
+        String highestCategory = null;
+        double maxAverage = -1.0;
 
-    // --- Métodos de Relatórios ---
-    private void exibirDistribuicaoPorTipoGestor() {
-        System.out.println(CYAN + "\n--- DISTRIBUIÇÃO DE AVALIAÇÕES POR TIPO DE GESTOR ---" + RESET);
-        List<ManagerTypeDistributionDto> distribution = evaluationService.getManagerTypeDistribution();
+        System.out.println(CYAN + "\n--- Médias de Pontuação por Categoria ---" + RESET);
+        for (String categoryName : Arrays.asList("ADMINISTRATIVE", "TECHNICAL", "PERSONAL")) {
+            double totalScore = categoryScores.getOrDefault(categoryName, 0.0);
+            int count = categoryCounts.getOrDefault(categoryName, 0);
+
+            if (count > 0) {
+                double average = totalScore / count;
+                System.out.printf("  Média de %s: %.2f\n", categoryName, average);
+
+                if (average > maxAverage) {
+                    maxAverage = average;
+                    highestCategory = categoryName;
+                }
+            } else {
+                System.out.printf("  Média de %s: N/A (nenhuma característica avaliada nesta categoria)\n", categoryName);
+            }
+        }
+
+        if (highestCategory != null) {
+            try {
+                return ManagerType.valueOf(highestCategory.toUpperCase());
+            } catch (IllegalArgumentException e) {
+                return ManagerType.OTHER;
+            }
+        }
+        return ManagerType.OTHER;
+    }
+
+    private void exibirFeedbackGerente(ManagerType managerType) {
+        System.out.println(PURPLE + "\n--- FEEDBACK ESTRATÉGICO PARA O GERENTE ---" + RESET);
+        switch (managerType) {
+            case ADMINISTRATIVE:
+                System.out.println(BLUE + "Este gerente demonstra fortes Habilidades Administrativas." + RESET);
+                System.out.println(BLUE + "Pontos Fortes: Liderança, organização de processos, gestão de recursos, e capacidade de criar um ambiente produtivo." + RESET);
+                System.out.println(BLUE + "Ideal para: Funções que exigem planejamento estratégico, otimização de fluxos de trabalho, coordenação de grandes equipes e manutenção da ordem e eficiência." + RESET);
+                System.out.println(BLUE + "Pode ser bom em: Gestão de projetos complexos, otimização operacional, e liderança de departamentos com foco em resultados e estrutura." + RESET);
+                break;
+            case TECHNICAL:
+                System.out.println(BLUE + "Este gerente demonstra fortes Habilidades Técnicas." + RESET);
+                System.out.println(BLUE + "Pontos Fortes: Conhecimento aprofundado na área de atuação, resolução de problemas técnicos, inovação e capacidade de ser um mentor técnico." + RESET);
+                System.out.println(BLUE + "Ideal para: Ambientes que exigem expertise técnica de ponta, liderança de equipes de engenharia, P&D, ou projetos que dependem de soluções técnicas inovadoras." + RESET);
+                System.out.println(BLUE + "Pode ser bom em: Desenvolvimento de produtos, arquitetura de sistemas, e liderança de equipes especializadas em tecnologia." + RESET);
+                break;
+            case PERSONAL:
+                System.out.println(BLUE + "Este gerente demonstra fortes Habilidades Pessoais." + RESET);
+                System.out.println(BLUE + "Pontos Fortes: Comunicação eficaz, sensibilidade interpessoal, motivação de equipe, promoção de reconhecimento e capacidade de construir relações colaborativas." + RESET);
+                System.out.println(BLUE + "Ideal para: Funções que envolvem gestão de talentos, desenvolvimento de equipe, mediação de conflitos, e construção de uma cultura organizacional positiva e engajante." + RESET);
+                System.out.println(BLUE + "Pode ser bom em: Liderança de equipes multidisciplinares, recursos humanos, e funções que exigem forte inteligência emocional e habilidades de negociação." + RESET);
+                break;
+            case OTHER:
+            default:
+                System.out.println(YELLOW + "O tipo de gestor não pôde ser claramente determinado ou se encaixa em uma categoria mista/outra." + RESET);
+                System.out.println(YELLOW + "Este gerente possui uma combinação equilibrada de habilidades ou as pontuações não indicam uma predominância clara." + RESET);
+                System.out.println(YELLOW + "Pode ser adaptável a diversas funções, mas um aprofundamento é necessário para identificar seus maiores pontos fortes." + RESET);
+                break;
+        }
+        System.out.println(PURPLE + "------------------------------------------" + RESET);
+    }
+
+
+    private void exibirMenuRelatorios() {
+        int opt;
+        do {
+            System.out.println(CYAN + "\n--- RELATÓRIOS ---" + RESET);
+            System.out.println("1. Gerar Relatório Completo");
+            System.out.println("0. Voltar");
+            System.out.print(YELLOW + "Escolha: " + RESET);
+            opt = lerInteiro();
+            switch (opt) {
+                case 1:
+                    gerarRelatorioCompleto();
+                    break;
+                case 0:
+                    System.out.println(GREEN + "Voltando..." + RESET);
+                    break;
+                default:
+                    exibirErro("Opção inválida.");
+            }
+        } while (opt != 0);
+    }
+
+    private void gerarRelatorioCompleto() {
+        System.out.println(CYAN + "\n--- RELATÓRIO GERAL DE AVALIAÇÕES DE DESEMPENHO ---" + RESET);
+        System.out.println(BLUE + "Nossa empresa valoriza o desenvolvimento contínuo de seus líderes." + RESET);
+        System.out.println(BLUE + "Este relatório consolida dados de avaliações de desempenho de gerentes, oferecendo insights sobre suas habilidades e perfis de liderança." + RESET);
+        System.out.println(BLUE + "Acreditamos que a compreensão desses dados nos ajuda a alocar talentos de forma mais eficaz e a promover um ambiente de crescimento." + RESET);
+
+        // NOVO: Contagem Total de Avaliações Registradas
+        List<Evaluation> allEvaluationsForCount = evaluationService.getAllEvaluations();
+        System.out.println(CYAN + "\n--- 0. RESUMO GERAL ---" + RESET);
+        System.out.printf(BLUE + "Total de Avaliações Registradas: %d\n", allEvaluationsForCount.size());
+        System.out.println(BLUE + "------------------------------------------" + RESET);
+
+        System.out.println(CYAN + "\n--- 1. DISTRIBUIÇÃO DE AVALIAÇÕES POR TIPO DE GESTOR ---" + RESET);
+        List<Object[]> distribution = evaluationService.getManagerTypeDistribution();
         if (distribution.isEmpty()) {
             System.out.println(YELLOW + "Nenhum dado de distribuição encontrado." + RESET);
         } else {
-            distribution.forEach(dto ->
-                    System.out.println(BLUE + "Tipo de Gestor: " + dto.getManagerType().getDisplayValue() + ", Contagem: " + dto.getCount() + RESET));
+            distribution.forEach(row ->
+                    System.out.printf("Tipo Gestor: %s, Contagem: %d\n", ((ManagerType) row[0]).getDisplayValue(), (Long) row[1]));
         }
-    }
 
-    private void exibirMediaPorTipoGestor() {
-        System.out.println(CYAN + "\n--- MÉDIA DE PONTUAÇÃO POR TIPO DE GESTOR ---" + RESET);
-        List<ManagerTypeAverageScoreDto> averageScores = evaluationService.getAverageScoreByManagerType();
+        System.out.println(CYAN + "\n--- 2. MÉDIA DE PONTUAÇÃO POR TIPO DE GESTOR ---" + RESET);
+        List<Object[]> averageScores = evaluationService.getAverageScoreByManagerType();
         if (averageScores.isEmpty()) {
             System.out.println(YELLOW + "Nenhum dado de média por tipo de gestor encontrado." + RESET);
         } else {
-            averageScores.forEach(dto ->
-                    System.out.printf(BLUE + "Tipo de Gestor: %s, Média de Pontuação: %.2f%s\n",
-                            dto.getManagerType().getDisplayValue(), dto.getAverageScore(), RESET));
+            averageScores.forEach(row ->
+                    System.out.printf("Tipo Gestor: %s, Média: %.2f\n", ((ManagerType) row[0]).getDisplayValue(), (Double) row[1]));
         }
-    }
 
-    private void exibirResumosAvaliacoes() {
-        System.out.println(CYAN + "\n--- RESUMOS DE AVALIAÇÕES ---" + RESET);
-        List<EvaluationSummaryDto> summaries = evaluationService.getEvaluationSummaries();
-        if (summaries.isEmpty()) {
-            System.out.println(YELLOW + "Nenhum resumo de avaliação encontrado." + RESET);
-        } else {
-            summaries.forEach(summary -> {
-                System.out.println(BLUE + "ID da Avaliação: " + summary.getId() + RESET);
-                System.out.println("  Título: " + summary.getTitle());
-                System.out.println("  Período: " + summary.getStartDate() + " a " + summary.getEndDate());
-                System.out.println("  Avaliado: " + summary.getEvaluatedName());
-                System.out.println("  Avaliador: " + summary.getEvaluatorName());
-                System.out.printf("  Média de Pontuação: %.2f\n", summary.getAverageScore());
-                System.out.println("--------------------");
-            });
-        }
-    }
-
-    // NOVO MÉTODO: Exibir Média de Pontuação por Tipo de Gestor e Categoria de Habilidade
-    private void exibirMediaPorTipoGestorEHabilidade() {
-        System.out.println(CYAN + "\n--- MÉDIA DE PONTUAÇÃO POR TIPO DE GESTOR E CATEGORIA DE HABILIDADE ---" + RESET);
-        List<ManagerTypeSkillAverageDto> averageScores = evaluationService.getAverageScoreByManagerTypeAndSkillCategory();
-        if (averageScores.isEmpty()) {
+        System.out.println(CYAN + "\n--- 3. MÉDIA DE PONTUAÇÃO POR TIPO DE GESTOR E CATEGORIA DE HABILIDADE ---" + RESET);
+        List<Object[]> avgSkillCat = evaluationService.getAverageScoreByManagerTypeAndSkillCategory();
+        if (avgSkillCat.isEmpty()) {
             System.out.println(YELLOW + "Nenhum dado de média por tipo de gestor e categoria de habilidade encontrado." + RESET);
         } else {
-            // Agrupar os resultados para uma melhor visualização no console
-            averageScores.stream()
-                    .collect(Collectors.groupingBy(ManagerTypeSkillAverageDto::getManagerType))
-                    .forEach((managerType, skills) -> {
-                        System.out.println(BLUE + "Tipo de Gestor: " + managerType.getDisplayValue() + RESET);
-                        skills.forEach(skill ->
-                                System.out.printf("  - Categoria: %s, Média de Pontuação: %.2f\n",
-                                        skill.getSkillCategory(), skill.getAverageScore()));
-                        System.out.println("--------------------");
+            avgSkillCat.stream()
+                    .collect(Collectors.groupingBy(row -> (ManagerType) row[0]))
+                    .forEach((managerType, rows) -> {
+                        System.out.println("Tipo Gestor: " + managerType.getDisplayValue());
+                        rows.forEach(row ->
+                                System.out.printf("  - Categoria: %s, Média: %.2f\n", (String) row[1], (Double) row[2]));
                     });
+        }
+
+        System.out.println(CYAN + "\n--- 4. ESTATÍSTICAS DETALHADAS POR CATEGORIA DE HABILIDADE ---" + RESET);
+        Map<String, List<Integer>> allScoresByCategory = new HashMap<>();
+        List<Integer> overallScores = new ArrayList<>(); // Para média geral e distribuição
+        List<Evaluation> allEvalsForStats = evaluationService.getAllEvaluations();
+
+        for (Evaluation eval : allEvalsForStats) {
+            for (Characteristic charac : eval.getCharacteristics()) {
+                String category = charac.getSkillCategory();
+                if (charac.getRatings() != null && !charac.getRatings().isEmpty()) {
+                    charac.getRatings().forEach(rating -> {
+                        allScoresByCategory.computeIfAbsent(category, k -> new ArrayList<>()).add(rating.getScore());
+                        overallScores.add(rating.getScore()); // Coleta para média geral
+                    });
+                }
+            }
+        }
+
+        // Pontuação Média Geral (de todas as características)
+        if (!overallScores.isEmpty()) {
+            double overallMean = overallScores.stream().mapToDouble(Integer::doubleValue).average().orElse(0.0);
+            System.out.printf(BLUE + "Média Geral de Pontuação (Todas as Características): %.2f\n", overallMean);
+            System.out.println(BLUE + "------------------------------------------" + RESET);
+        } else {
+            System.out.println(YELLOW + "Nenhuma pontuação geral encontrada para análise." + RESET);
+            System.out.println(YELLOW + "------------------------------------------" + RESET);
+        }
+
+        for (String categoryName : Arrays.asList("ADMINISTRATIVE", "TECHNICAL", "PERSONAL")) {
+            List<Integer> scores = allScoresByCategory.getOrDefault(categoryName, Collections.emptyList());
+            if (!scores.isEmpty()) {
+                double sum = scores.stream().mapToDouble(Integer::doubleValue).sum();
+                double mean = sum / scores.size();
+
+                // Desvio Padrão (amostral)
+                double variance = 0.0;
+                if (scores.size() > 1) { // Evita divisão por zero
+                    variance = scores.stream().mapToDouble(score -> Math.pow(score - mean, 2)).sum() / (scores.size() - 1);
+                }
+                double stdDev = Math.sqrt(variance);
+
+                // Mediana
+                List<Integer> sortedScores = new ArrayList<>(scores);
+                Collections.sort(sortedScores);
+                double median;
+                if (sortedScores.size() % 2 == 1) {
+                    median = sortedScores.get(sortedScores.size() / 2);
+                } else {
+                    median = (sortedScores.get(sortedScores.size() / 2 - 1) + sortedScores.get(sortedScores.size() / 2)) / 2.0;
+                }
+
+                // Mínima e Máxima
+                int minScore = scores.stream().mapToInt(Integer::intValue).min().orElse(0);
+                int maxScore = scores.stream().mapToInt(Integer::intValue).max().orElse(0);
+
+                System.out.printf(BLUE + "Categoria: %s\n", categoryName);
+                System.out.printf("  Média Geral de Pontuação: %.2f\n", mean);
+                System.out.printf("  Mediana: %.2f\n", median);
+                System.out.printf("  Desvio Padrão: %.2f\n", stdDev);
+                System.out.printf("  Pontuação Mínima: %d\n", minScore);
+                System.out.printf("  Pontuação Máxima: %d\n", maxScore);
+                System.out.println(BLUE + "------------------------------------------" + RESET);
+            } else {
+                System.out.printf(YELLOW + "Categoria: %s - Sem dados de pontuação para análise.\n", categoryName);
+                System.out.println(YELLOW + "------------------------------------------" + RESET);
+            }
+        }
+
+        // Distribuição de Pontuações (Frequência de cada nota)
+        System.out.println(CYAN + "\n--- 5. DISTRIBUIÇÃO GERAL DE PONTUAÇÕES ---" + RESET);
+        if (!overallScores.isEmpty()) {
+            Map<Integer, Long> scoreDistribution = overallScores.stream()
+                    .collect(Collectors.groupingBy(Function.identity(), Collectors.counting()));
+
+            // Garante que todas as pontuações de 1 a 5 sejam exibidas, mesmo que não tenham ocorrido
+            for (int i = 1; i <= 5; i++) {
+                System.out.printf(BLUE + "  Pontuação %d: %d ocorrências\n", i, scoreDistribution.getOrDefault(i, 0L));
+            }
+        } else {
+            System.out.println(YELLOW + "Nenhuma pontuação geral encontrada para análise de distribuição." + RESET);
+        }
+        System.out.println(BLUE + "------------------------------------------" + RESET);
+    }
+
+    private void listarAvaliados() {
+        System.out.println(CYAN + "\n--- Gerentes/Avaliados Disponíveis ---" + RESET);
+        List<Evaluated> evaluateds = evaluatedService.getAllEvaluated();
+        if (evaluateds.isEmpty()) {
+            System.out.println(YELLOW + "Nenhum gerente encontrado. Cadastre um gerente primeiro (via SQL ou ferramenta de BD)." + RESET);
+        } else {
+            evaluateds.forEach(e -> System.out.printf("ID: %d, Nome: %s\n", e.getId(), e.getName()));
+        }
+    }
+
+    private void listarAvaliadores() {
+        System.out.println(CYAN + "\n--- Avaliadores (Funcionários) Disponíveis ---" + RESET);
+        List<Evaluator> evaluators = evaluatorService.getAllEvaluators();
+        if (evaluators.isEmpty()) {
+            System.out.println(YELLOW + "Nenhum avaliador encontrado. Cadastre um avaliador primeiro (via SQL ou ferramenta de BD)." + RESET);
+        } else {
+            evaluators.forEach(e -> System.out.printf("ID: %d, Nome: %s\n", e.getId(), e.getName()));
         }
     }
 
 
-    // --- Métodos Auxiliares ---
     private Long lerLongId() {
         while (!scanner.hasNextLong()) {
-            System.out.println(RED + "Entrada inválida. Por favor, digite um número inteiro para o ID." + RESET);
+            exibirErro("Inválido. Digite um número.");
             scanner.next();
         }
         Long id = scanner.nextLong();
-        scanner.nextLine(); // Consumir a nova linha
+        scanner.nextLine();
         return id;
     }
 
     private Integer lerInteiro() {
         while (!scanner.hasNextInt()) {
-            System.out.println(RED + "Entrada inválida. Por favor, digite um número inteiro." + RESET);
+            exibirErro("Inválido. Digite um número.");
             scanner.next();
         }
-        Integer valor = scanner.nextInt();
-        scanner.nextLine(); // Consumir a nova linha
-        return valor;
+        Integer val = scanner.nextInt();
+        scanner.nextLine();
+        return val;
+    }
+
+    private LocalDateTime readDateTime(String prompt) {
+        LocalDateTime dt = null;
+        while (dt == null) {
+            System.out.print(prompt);
+            dt = parseDateTime(scanner.nextLine());
+        }
+        return dt;
+    }
+
+    private LocalDateTime readDateTimeOptional(String prompt) {
+        System.out.print(prompt + " (ENTER para manter): ");
+        return parseDateTime(scanner.nextLine());
     }
 
     private LocalDateTime parseDateTime(String dateTimeString) {
         try {
             return LocalDateTime.parse(dateTimeString, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"));
         } catch (DateTimeParseException e) {
-            exibirErro("Formato de data/hora inválido. Use AAAA-MM-DD HH:MM. Ex: 2025-01-01 10:30");
+            if (!dateTimeString.isEmpty()) {
+                exibirErro("Formato inválido. Use AAAA-MM-DD HH:MM.");
+            }
             return null;
         }
     }
 
-    private <T> void exibirLista(String titulo, List<T> lista) {
-        System.out.println(CYAN + "\n--- " + titulo + " ---" + RESET);
+    private <T> void exibirLista(List<T> lista) {
+        System.out.println(CYAN + "\n--- LISTA ---" + RESET);
         if (lista.isEmpty()) {
-            System.out.println(YELLOW + "Nenhum item encontrado." + RESET);
+            System.out.println(YELLOW + "Nenhum item." + RESET);
         } else {
             lista.forEach(System.out::println);
         }
     }
 
-    private void exibirErro(String mensagem) {
-        System.err.println(RED + "ERRO: " + mensagem + RESET);
+    private void exibirErro(String msg) {
+        System.err.println(RED + "ERRO: " + msg + RESET);
+    }
+
+    private boolean confirm(String prompt) {
+        System.out.print(prompt + " ");
+        return scanner.nextLine().equalsIgnoreCase("s");
+    }
+
+    private ManagerType selectManagerType() {
+        ManagerType mType = null;
+        while (mType == null) {
+            System.out.println("Tipo de Gestor:");
+            for (ManagerType type : ManagerType.values()) {
+                System.out.println(type.ordinal() + 1 + ". " + type.getDisplayValue());
+            }
+            System.out.print("Opção: ");
+            int opt = lerInteiro();
+            try {
+                mType = ManagerType.values()[opt - 1];
+            } catch (ArrayIndexOutOfBoundsException e) {
+                exibirErro("Opção inválida.");
+            }
+        }
+        return mType;
     }
 }

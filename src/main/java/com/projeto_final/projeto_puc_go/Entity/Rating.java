@@ -33,15 +33,15 @@ public class Rating {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER) // Alterado para EAGER
     @JoinColumn(name = "characteristic_id", nullable = false)
     private Characteristic characteristic;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER) // Alterado para EAGER
     @JoinColumn(name = "evaluator_id", nullable = false)
     private Evaluator evaluator;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER) // Alterado para EAGER
     @JoinColumn(name = "evaluation_id", nullable = false)
     private Evaluation evaluation;
 
